@@ -10,6 +10,13 @@ from dfa.utils import min_distance_to_accept_by_state
 
 feature_inds = {"temp": -5, "rejecting": -4, "accepting": -3, "init": -2, "normal": -1}
 
+def bisim2feat(bisim, n_tokens):
+    obs1 = bisim[:, :bisim.shape[1]//2]
+    obs2 = bisim[:, bisim.shape[1]//2:]
+    feat1 = obs2feat(obs1, n_tokens=n_tokens)
+    feat2 = obs2feat(obs2, n_tokens=n_tokens)
+    return feat1, feat2
+
 def obs2feat(dfa_obs, n_tokens):
     if dfa_obs.ndim == 1:
         return _obs2feat(dfa_obs, n_tokens=n_tokens)

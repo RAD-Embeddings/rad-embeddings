@@ -1,4 +1,7 @@
 from rad_embeddings.utils.sb3_dfa_env_features_extractor import DFAEnvFeaturesExtractor
 from rad_embeddings.utils.sb3_token_env_features_extractor import TokenEnvFeaturesExtractor
 from rad_embeddings.utils.sb3_logger_callback import LoggerCallback
-from rad_embeddings.utils.utils import obs2feat, dfa2obs, dfa2dist
+from rad_embeddings.utils.utils import obs2feat, dfa2obs, dfa2dist, bisim2feat
+from rad_embeddings.utils.dqn import DQN
+from rad_embeddings.utils.custom_network import CustomActorCriticPolicy
+from rad_embeddings.utils.custom_dqn_policy import CustomDQNPolicy
