@@ -24,18 +24,15 @@ class Model(nn.Module):
 
         h_0 = self.linear_in(feat.float())
         h = h_0
-        i = 0
-        mask = i < edge_mask
 
         temp = torch.zeros_like(h)
+        max_n = edge_mask.max().item()
 
-        while mask.any().item():
-            h = self.conv(torch.cat([h, h_0], dim=1), edge_index[:, mask]).view(h.shape[0], self.n_heads, self.hidden_dim).sum(dim=1)
+        for i in range(max_n):
+            h = self.conv(torch.cat([h, h_0], dim=1), edge_index[:, i < edge_mask]).view(h.shape[0], self.n_heads, self.hidden_dim).sum(dim=1)
             h = self.activation(h)
-            nonzero_mask = h != 0  # Boolean mask for nonzero elements
+            nonzero_mask = h != 0
             temp[nonzero_mask] = h[nonzero_mask]
-            i += 1
-            mask = i < edge_mask
         hg = temp[current_state.bool()]
         out = self.g_embed(hg)
         return out

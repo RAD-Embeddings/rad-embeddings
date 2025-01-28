@@ -91,3 +91,27 @@ def dfa2dist(dfa_obs, n_tokens):
         dist = 0
 
     return dist
+
+def get_model(env_id, save_dir, alg, seed):
+    from utils.config import get_config
+    assert alg == "PPO" or alg == "DQN"
+    config = get_config(env_id, save_dir, alg, seed)
+    if alg == "DQN":
+        if "Bisim" in env_id:
+            from dqn import DQN
+            return DQN(**config), config
+        else:
+            from stable_baselines3 import DQN
+            return DQN(**config), config
+    else:
+        from stable_baselines3 import PPO
+        return PPO(**config), config
+
+def load_model(load_file):
+    from stable_baselines3 import PPO
+    model = PPO.load(load_file)
+    model.set_parameters(load_file)
+    for param in model.policy.parameters():
+        param.requires_grad = False
+    model.policy.eval()
+    return model

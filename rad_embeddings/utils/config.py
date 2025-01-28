@@ -15,7 +15,7 @@ def get_config(env_id, save_dir, alg, seed):
     assert "DFAEnv" in env_id or "DFABisimEnv" in env_id
     if alg == "DQN":
         return dict(
-            policy = CustomDQNPolicy,
+            policy = CustomDQNPolicy if "Bisim" in env_id else "MlpPolicy",
             env = env,
             learning_rate = 1e-3,
             buffer_size = 100_000,
@@ -41,7 +41,7 @@ def get_config(env_id, save_dir, alg, seed):
         )
     elif alg == "PPO":
         return dict(
-            policy = CustomPPOPolicy,
+            policy = CustomPPOPolicy if "Bisim" in env_id else "MlpPolicy",
             env = env,
             learning_rate = 1e-3,
             n_steps = 512,
