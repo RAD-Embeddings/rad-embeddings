@@ -172,3 +172,7 @@ cython_debug/
 
 # macos
 .DS_Store
+
+# repo
+wandb
+storage
