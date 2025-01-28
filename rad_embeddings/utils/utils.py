@@ -69,8 +69,9 @@ def _obs2feat(dfa_obs, n_tokens):
                         edges.append((t_idx, s_idx))
     feat = torch.from_numpy(np.array(list(nodes.values())))
     edge_index = torch.from_numpy(np.array(edges))
+    edge_mask = torch.from_numpy(np.array([len(nodes) for _ in edges]))
     current_state = torch.from_numpy(np.array([1] + [0] * (len(nodes) - 1))) # 0 is the current state
-    return Data(feat=feat, edge_index=edge_index.T, current_state=current_state)
+    return Data(feat=feat, edge_index=edge_index.T, edge_mask=edge_mask, current_state=current_state)
 
 def dfa2obs(dfa: DFA) -> Data:
     return np.array([int(i) for i in str(dfa.to_int())])

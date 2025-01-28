@@ -32,6 +32,7 @@ class NormL2(nn.Module):
     def forward(self, features: torch.Tensor) -> torch.Tensor:
         feat1 = features[:, :features.shape[1]//2]
         feat2 = features[:, features.shape[1]//2:]
+
         feat1 = feat1 / torch.norm(feat1, p=2, dim=-1, keepdim=True)
         feat2 = feat2 / torch.norm(feat2, p=2, dim=-1, keepdim=True)
         d = torch.norm(feat1 - feat2, p=2, dim=-1)

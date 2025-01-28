@@ -1,7 +1,7 @@
 import gymnasium as gym
 
-from utils.custom_ppo_policy import CustomPPOPolicy
-from utils.custom_dqn_policy import CustomDQNPolicy
+from utils.sb3.custom_ppo_policy import CustomPPOPolicy
+from utils.sb3.custom_dqn_policy import CustomDQNPolicy
 from utils.sb3.dfa_env_features_extractor import DFAEnvFeaturesExtractor
 from utils.sb3.dfa_bisim_env_features_extractor import DFABisimEnvFeaturesExtractor
 

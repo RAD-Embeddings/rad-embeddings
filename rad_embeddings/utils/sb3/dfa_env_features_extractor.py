@@ -5,7 +5,7 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 class DFAEnvFeaturesExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space, features_dim, n_tokens, model_cls=Model):
-        super().__init__(observation_space, features_dim*2)
+        super().__init__(observation_space, features_dim)
         in_feat_size = n_tokens + len(feature_inds)
         self.model = model_cls(in_feat_size, features_dim)
         self.n_tokens = n_tokens

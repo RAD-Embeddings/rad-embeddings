@@ -16,13 +16,26 @@ class Model(nn.Module):
         self.g_embed = nn.Linear(self.hidden_dim, self.output_dim)
 
     def forward(self, data):
+
         feat = data.feat
         edge_index = data.edge_index
+        edge_mask = data.edge_mask
         current_state = data.current_state
+
         h_0 = self.linear_in(feat.float())
         h = h_0
-        for i in range(self.num_layers):
-            h = self.conv(torch.cat([h, h_0], dim=1), edge_index).view(h.shape[0], self.n_heads, self.hidden_dim).sum(dim=1)
+        i = 0
+        mask = i < edge_mask
+
+        temp = torch.zeros_like(h)
+
+        while mask.any().item():
+            h = self.conv(torch.cat([h, h_0], dim=1), edge_index[:, mask]).view(h.shape[0], self.n_heads, self.hidden_dim).sum(dim=1)
             h = self.activation(h)
-        hg = h[current_state.bool()]
-        return self.g_embed(hg)
+            nonzero_mask = h != 0  # Boolean mask for nonzero elements
+            temp[nonzero_mask] = h[nonzero_mask]
+            i += 1
+            mask = i < edge_mask
+        hg = temp[current_state.bool()]
+        out = self.g_embed(hg)
+        return out
