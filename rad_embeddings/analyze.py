@@ -37,7 +37,7 @@ k = 5
 
 n_tokens = 10
 max_size = 10
-dfa_encoder = Encoder("storage/DFABisimEnv-v1-metric_norml2_gamma_90_ent_0-encoder.zip")
+dfa_encoder = Encoder("storage/DFABisimEnv-v1-encoder.zip")
 # dfa_encoder = Model(15, 32)
 # dfa_encoder.load_state_dict(torch.load("temp3_state_dict.pth", weights_only=True))
 # for param in dfa_encoder.parameters():

@@ -1,7 +1,7 @@
 import numpy as np
 from dfa import DFA
 
-from utils.utils import get_model, load_model
+from utils.utils import get_model, load_model, dfa2obs
 from utils.sb3.logger_callback import LoggerCallback
 
 class Encoder():

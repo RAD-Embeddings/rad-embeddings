@@ -20,35 +20,26 @@ class Model(nn.Module):
         feat = data.feat
         edge_index = data.edge_index
         current_state = data.current_state
-        node_mask = data.node_mask
-
+        active_node_indices = data.active_node_indices
+        active_edge_indices = data.active_edge_indices
         h_0 = self.linear_in(feat.float())
         h = h_0.clone()
-
-        # Precompute all edge indices
-        edge_indices = [
-            Batch.from_data_list(data.index_select(i < data.n_states)).edge_index
-            for i in range(data.edge_mask.max().item())
-        ]
-
         # Track intermediate states
         h_history = [h]
-
-        for i, edges in enumerate(edge_indices):
-            # Create persistent computation node
-            mask = i < node_mask
-            active_nodes = mask.nonzero().squeeze()
-
+        for active_node_idx, active_edge_idx  in zip(active_node_indices, active_edge_indices):
+            # Get active edges
+            active_edges = edge_index[:, active_edge_idx]
+            # Shift indices appearing in active edges
+            edges = active_edges - torch.cumsum(~active_node_idx, dim=0)[active_edges]
             # Compute updates without in-place ops
             h_next = h.clone()
-            h_next[active_nodes] = self.conv(
-                torch.cat([h[active_nodes], h_0[active_nodes]], 1),
+            h_next[active_node_idx] = self.conv(
+                torch.cat([h[active_node_idx], h_0[active_node_idx]], 1),
                 edges
             ).view(-1, self.n_heads, self.hidden_dim).sum(1)
-
-            h_next[active_nodes] = self.activation(h_next[active_nodes])
+            h_next[active_node_idx] = self.activation(h_next[active_node_idx])
             h = h_next
-            h_history.append(h)  # Preserve gradients
-
+            # Preserve gradients
+            h_history.append(h)
         hg = h[current_state.bool()]
         return self.g_embed(hg)

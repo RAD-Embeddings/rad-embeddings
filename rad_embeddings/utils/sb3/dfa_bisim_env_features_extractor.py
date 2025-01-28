@@ -10,7 +10,7 @@ class DFABisimEnvFeaturesExtractor(BaseFeaturesExtractor):
         self.model = model_cls(in_feat_size, features_dim)
         self.n_tokens = n_tokens
 
-    def forward(self, obs):
+    def forward(self, obs): # TODO: need another forward to get the rad embeddings
         feat1, feat2 = bisim2feat(obs, n_tokens=self.n_tokens)
         rad1 = self.model(feat1)
         rad2 = self.model(feat2)
