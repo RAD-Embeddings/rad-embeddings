@@ -1,13 +1,22 @@
+import gymnasium as gym
 
-from utils.custom_network import CustomActorCriticPolicy
+from utils.custom_ppo_policy import CustomPPOPolicy
 from utils.custom_dqn_policy import CustomDQNPolicy
-from utils.sb3_dfa_env_features_extractor import DFAEnvFeaturesExtractor
+from utils.sb3.dfa_env_features_extractor import DFAEnvFeaturesExtractor
+from utils.sb3.dfa_bisim_env_features_extractor import DFABisimEnvFeaturesExtractor
 
-def get_config(alg, train_env, save_dir, seed):
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.env_checker import check_env
+
+def get_config(env_id, save_dir, alg, seed):
+    n_envs = 16
+    check_env(gym.make(env_id))
+    env = make_vec_env(env_id, n_envs=n_envs)
+    assert "DFAEnv" in env_id or "DFABisimEnv" in env_id
     if alg == "DQN":
         return dict(
             policy = CustomDQNPolicy,
-            env = train_env,
+            env = env,
             learning_rate = 1e-3,
             buffer_size = 100_000,
             learning_starts = 10_000,
@@ -22,8 +31,8 @@ def get_config(alg, train_env, save_dir, seed):
             exploration_final_eps = 0.0,
             max_grad_norm = 10,
             policy_kwargs = dict(
-                features_extractor_class = DFAEnvFeaturesExtractor,
-                features_extractor_kwargs = dict(features_dim = 32, n_tokens = train_env.unwrapped.get_attr("sampler")[0].n_tokens),
+                features_extractor_class = DFABisimEnvFeaturesExtractor if "Bisim" in env_id else DFAEnvFeaturesExtractor,
+                features_extractor_kwargs = dict(features_dim = 32, n_tokens = env.unwrapped.get_attr("sampler")[0].n_tokens),
                 net_arch=[]
             ),
             verbose = 10,
@@ -32,8 +41,8 @@ def get_config(alg, train_env, save_dir, seed):
         )
     elif alg == "PPO":
         return dict(
-            policy = CustomActorCriticPolicy,
-            env = train_env,
+            policy = CustomPPOPolicy,
+            env = env,
             learning_rate = 1e-3,
             n_steps = 512,
             batch_size = 1024,
@@ -45,8 +54,8 @@ def get_config(alg, train_env, save_dir, seed):
             vf_coef = 1.0,
             max_grad_norm = 0.5,
             policy_kwargs = dict(
-                features_extractor_class = DFAEnvFeaturesExtractor,
-                features_extractor_kwargs = dict(features_dim = 32, n_tokens = train_env.unwrapped.get_attr("sampler")[0].n_tokens),
+                features_extractor_class = DFABisimEnvFeaturesExtractor if "Bisim" in env_id else DFAEnvFeaturesExtractor,
+                features_extractor_kwargs = dict(features_dim = 32, n_tokens = env.unwrapped.get_attr("sampler")[0].n_tokens),
                 net_arch=dict(pi=[], vf=[]),
                 share_features_extractor=True,
             ),

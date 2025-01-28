@@ -1,12 +1,8 @@
 import torch
 import random
 import numpy as np
-import gymnasium as gym
 
 from encoder import Encoder
-
-from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.env_checker import check_env
 
 if __name__ == "__main__":
 
@@ -16,24 +12,20 @@ if __name__ == "__main__":
     np.random.seed(SEED)
     torch.manual_seed(SEED)
 
-    n_envs = 16
-    env_id = "DFABisim2Env-v1"
+    env_id = "DFABisimEnv-v2"
     encoder_id = env_id + "-encoder"
     save_dir = "storage"
 
-    env = gym.make(env_id)
-    check_env(env)
+    Encoder.train(env_id=env_id, save_dir=save_dir, alg="DQN", id=encoder_id, seed=SEED)
 
-    train_env = make_vec_env(env_id, n_envs=n_envs)
-    # eval_env = gym.make(env_id)
-    eval_env = None
-
-    Encoder.train(train_env=train_env, eval_env=eval_env, save_dir=save_dir, alg="DQN", id=encoder_id, seed=SEED)
-
-    sampler = env.unwrapped.sampler
     encoder = Encoder(load_file=f"{save_dir}/{encoder_id}")
 
-    dfa = sampler.sample()
+    dfa = DFA(
+        start=0,
+        inputs=range(n_tokens),
+        label=lambda s: s == 5,
+        transition=lambda s, a: s + 1 if s == a and s < 5 else s,
+    ).minimize()
     print(dfa)
 
     rad = encoder.dfa2rad(dfa)

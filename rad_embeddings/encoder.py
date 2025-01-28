@@ -30,28 +30,20 @@ class Encoder():
 
     @staticmethod
     def train(
-        train_env: gym.Env,
+        env_id: str,
         save_dir: str,
         alg: str,
-        eval_env: gym.Env | None = None,
         id: str = "rad",
         seed: int | None = None
         ):
         assert alg == "PPO" or alg == "DQN"
         save_dir = save_dir[:-1] if save_dir.endswith("/") else save_dir
-        config = get_config(alg, train_env, save_dir, seed)
+        config = get_config(env_id, save_dir, alg, seed)
         model = PPO(**config) if alg == "PPO" else DQN(**config)
 
         print("Total number of parameters:", sum(p.numel() for p in model.policy.parameters() if p.requires_grad))
         print(model.policy)
 
-        callback_list = []
-        logger_callback = LoggerCallback(gamma=config["gamma"])
-        callback_list.append(logger_callback)
-        if eval_env is not None:
-            stop_train_callback = StopTrainingOnNoModelImprovement(max_no_improvement_evals=10, min_evals=20, verbose=1)
-            eval_callback = EvalCallback(eval_env, eval_freq=1000, callback_after_eval=stop_train_callback, verbose=1)
-            callback_list.append(eval_callback)
-        model.learn(1_000_000, callback=callback_list)
+        model.learn(1_000_000, callback=LoggerCallback(gamma=config["gamma"]))
         model.save(f"{save_dir}/{id}")
 

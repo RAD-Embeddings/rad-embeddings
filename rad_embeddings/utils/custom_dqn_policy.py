@@ -91,9 +91,6 @@ class CustomQNetwork(BasePolicy):
     def _predict(self, observation: PyTorchObs, deterministic: bool = True) -> th.Tensor:
         q_values = self(observation)
         return q_values
-        # print(observation.shape)
-        # print(q_values)
-        # input()
         # Greedy action
         # action = q_values.argmax(dim=1).reshape(-1)
         # return action
@@ -110,7 +107,6 @@ class CustomQNetwork(BasePolicy):
             )
         )
         return data
-
 
 class CustomDQNPolicy(BasePolicy):
     """
@@ -238,70 +234,4 @@ class CustomDQNPolicy(BasePolicy):
         """
         self.q_net.set_training_mode(mode)
         self.training = mode
-
-
-# class CustomNetwork(BasePolicy):
-#     """
-#     Custom network for policy and value function.
-#     It receives as input the features extracted by the features extractor.
-
-#     :param feature_dim: dimension of the features extracted with the features_extractor (e.g. features from a CNN)
-#     :param last_layer_dim_pi: (int) number of units for the last layer of the policy network
-#     :param last_layer_dim_vf: (int) number of units for the last layer of the value network
-#     """
-
-#     def __init__(self, observation_space, action_space, **kwargs):
-#         super().__init__(observation_space, action_space, **kwargs)
-
-#     def forward(self, features: torch.Tensor) -> torch.Tensor:
-
-
-#         feat1 = features[:, :features.shape[1]//2]
-#         feat2 = features[:, features.shape[1]//2:]
-#         # d = 1 - nn.functional.cosine_similarity(feat1, feat2, dim=1, eps=1e-8)
-#         # d = torch.norm(feat1 - feat2, p=1, dim=1)
-#         # return self.value_net(features)
-#         print(feat1)
-#         print(feat2)
-#         print(feat1.shape)
-#         print(feat2.shape)
-#         # print(torch.norm(feat1, p=2, dim=-1, keepdim=True))
-#         print(self.features_extractor)
-#         input()
-#         feat1 = feat1 / torch.norm(feat1, p=2, dim=-1, keepdim=True)
-#         feat2 = feat2 / torch.norm(feat2, p=2, dim=-1, keepdim=True)
-#         # Compute the L2 distance between the normalized vectors
-#         d = torch.norm(feat1 - feat2, p=2, dim=-1)
-#         return d
-
-#     def _predict(self, observation, deterministic: bool = True):
-#         q_values = self(observation)
-#         # Greedy action
-#         print(q_values)
-#         input()
-#         action = q_values.argmax(dim=1).reshape(-1)
-#         return action
-
-
-# class CustomDQNPolicy(DQNPolicy):
-#     def __init__(
-#         self,
-#         observation_space: spaces.Space,
-#         action_space: spaces.Space,
-#         lr_schedule: Callable[[float], float],
-#         *args,
-#         **kwargs,
-#     ):
-#         super().__init__(
-#             observation_space,
-#             action_space,
-#             lr_schedule,
-#             *args,
-#             **kwargs,
-#         )
-#         self.q_net = CustomNetwork(observation_space, action_space)
-
-
-#     # def _build_mlp_extractor(self) -> None:
-#     #     self.mlp_extractor = CustomNetwork(self.features_dim)
 
