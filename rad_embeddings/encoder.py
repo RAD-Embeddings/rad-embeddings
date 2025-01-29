@@ -10,6 +10,7 @@ class Encoder():
         self.n_tokens = model.policy.features_extractor.n_tokens
         self.obs2rad = model.policy.features_extractor.obs2rad
         self.rad2token = lambda _rad: model.policy.action_net(_rad).argmax(dim=1)
+        self.rad2val = model.policy.value_net
 
     def dfa2rad(self, dfa: DFA) -> np.array:
         assert len(dfa.inputs) == self.n_tokens
