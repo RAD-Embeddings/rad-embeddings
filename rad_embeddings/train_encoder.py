@@ -3,6 +3,7 @@ import random
 import numpy as np
 
 import dfa_gym
+from dfa import DFA
 
 from encoder import Encoder
 
@@ -24,7 +25,7 @@ if __name__ == "__main__":
 
     dfa = DFA(
         start=0,
-        inputs=range(n_tokens),
+        inputs=range(10),
         label=lambda s: s == 5,
         transition=lambda s, a: s + 1 if s == a and s < 5 else s,
     ).minimize()
@@ -33,5 +34,5 @@ if __name__ == "__main__":
     rad = encoder.dfa2rad(dfa)
     print(rad)
 
-    token = encoder.rad2token(rad)
-    print(token)
+    # token = encoder.rad2token(rad)
+    # print(token)

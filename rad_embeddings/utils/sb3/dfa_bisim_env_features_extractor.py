@@ -1,6 +1,6 @@
 import torch
 from rad_embeddings.model import Model
-from rad_embeddings.utils.utils import feature_inds, obs2feat, bisim2feat
+from rad_embeddings.utils.utils import feature_inds, obs2feat
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 class DFABisimEnvFeaturesExtractor(BaseFeaturesExtractor):
@@ -10,9 +10,13 @@ class DFABisimEnvFeaturesExtractor(BaseFeaturesExtractor):
         self.model = model_cls(in_feat_size, features_dim)
         self.n_tokens = n_tokens
 
-    def forward(self, obs): # TODO: need another forward to get the rad embeddings
-        feat1, feat2 = bisim2feat(obs, n_tokens=self.n_tokens)
-        rad1 = self.model(feat1)
-        rad2 = self.model(feat2)
-        out = torch.cat([rad1, rad2], dim=1)
+    def forward(self, bisim):
+        obs = torch.cat(torch.split(bisim, bisim.shape[1]//2, dim=1), dim=0)
+        rad = self.obs2rad(obs)
+        out = torch.cat(torch.split(rad, rad.shape[0]//2, dim=0), dim=1)
         return out
+
+    def obs2rad(self, obs):
+        feat = obs2feat(obs, n_tokens=self.n_tokens)
+        rad = self.model(feat)
+        return rad

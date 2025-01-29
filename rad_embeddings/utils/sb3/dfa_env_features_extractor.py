@@ -1,6 +1,6 @@
 import torch
 from rad_embeddings.model import Model
-from rad_embeddings.utils.utils import feature_inds, obs2feat, bisim2feat
+from rad_embeddings.utils.utils import feature_inds, obs2feat
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 class DFAEnvFeaturesExtractor(BaseFeaturesExtractor):
@@ -12,3 +12,6 @@ class DFAEnvFeaturesExtractor(BaseFeaturesExtractor):
 
     def forward(self, obs):
         return self.model(obs2feat(obs, n_tokens=self.n_tokens))
+
+    def obs2rad(self, obs):
+        return self.forward(obs)
