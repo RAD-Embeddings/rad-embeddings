@@ -4,5 +4,5 @@ from rad_embeddings.utils.sb3.token_env_features_extractor import TokenEnvFeatur
 from rad_embeddings.utils.sb3.logger_callback import LoggerCallback
 from rad_embeddings.utils.utils import obs2feat, dfa2obs, dfa2dist, get_model
 from rad_embeddings.utils.dqn import DQN
-from rad_embeddings.utils.sb3.custom_ppo_policy import CustomPPOPolicy
+from rad_embeddings.utils.sb3.custom_ppo_policy import CustomPPOPolicy, CustomPPOPolicy2
 from rad_embeddings.utils.sb3.custom_dqn_policy import CustomDQNPolicy
