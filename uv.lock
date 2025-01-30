@@ -263,17 +263,19 @@ wheels = [
 
 [[package]]
 name = "dfa-gym"
-version = "0.1.12"
+version = "0.1.23"
 source = { directory = "../dfa-gym" }
 dependencies = [
     { name = "dfa-samplers" },
     { name = "gymnasium" },
+    { name = "rad-embeddings" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "dfa-samplers", specifier = ">=0.1.0" },
     { name = "gymnasium", specifier = ">=1.0.0" },
+    { name = "rad-embeddings", directory = "." },
 ]
 
 [[package]]
@@ -972,7 +974,7 @@ wheels = [
 
 [[package]]
 name = "rad-embeddings"
-version = "0.1.3"
+version = "0.1.6"
 source = { editable = "." }
 dependencies = [
     { name = "dfa-gym" },

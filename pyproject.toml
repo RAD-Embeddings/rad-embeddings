@@ -1,6 +1,6 @@
 [project]
 name = "rad-embeddings"
-version = "0.1.3"
+version = "0.1.6"
 description = "RAD Embeddings"
 readme = "README.md"
 requires-python = ">=3.12"

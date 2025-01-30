@@ -1,14 +1,14 @@
 import gymnasium as gym
 
-from utils.sb3.custom_ppo_policy import CustomPPOPolicy
-from utils.sb3.custom_dqn_policy import CustomDQNPolicy
-from utils.sb3.dfa_env_features_extractor import DFAEnvFeaturesExtractor
-from utils.sb3.dfa_bisim_env_features_extractor import DFABisimEnvFeaturesExtractor
+from .sb3.custom_ppo_policy import CustomPPOPolicy
+from .sb3.custom_dqn_policy import CustomDQNPolicy
+from .sb3.dfa_env_features_extractor import DFAEnvFeaturesExtractor
+from .sb3.dfa_bisim_env_features_extractor import DFABisimEnvFeaturesExtractor
 
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.env_checker import check_env
 
-def get_config(env_id, save_dir, alg, seed):
+def get_config(env_id, alg, save_dir=None, seed=None):
     n_envs = 16
     check_env(gym.make(env_id))
     env = make_vec_env(env_id, n_envs=n_envs)
