@@ -4,17 +4,22 @@ from torch_geometric.data import Batch
 from torch_geometric.nn import GATv2Conv
 
 class Model(nn.Module):
-    def __init__(self, input_dim, output_dim, **kwargs):
+    def __init__(self, input_dim, output_dim, reparam, **kwargs):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
+        self.reparam = reparam
         self.hidden_dim = kwargs.get("hidden_dim", 64)
         self.num_layers = kwargs.get("num_layers", 8)
         self.n_heads = kwargs.get("n_heads", 4)
         self.linear_in = nn.Linear(self.input_dim, self.hidden_dim)
         self.conv = GATv2Conv(2*self.hidden_dim, self.hidden_dim, heads=self.n_heads, add_self_loops=True)
         self.activation = nn.Tanh()
-        self.g_embed = nn.Linear(self.hidden_dim, self.output_dim)
+        if self.reparam:
+            self.mu = nn.Linear(self.hidden_dim, self.output_dim)
+            self.logvar = nn.Linear(self.hidden_dim, self.output_dim)
+        else:
+            self.g_embed = nn.Linear(self.hidden_dim, self.output_dim)
 
     def forward(self, data):
         feat = data.feat
@@ -42,4 +47,11 @@ class Model(nn.Module):
             # Preserve gradients
             h_history.append(h)
         hg = h[current_state.bool()]
-        return self.g_embed(hg)
+        if self.reparam:
+            mu = self.mu(hg)
+            logvar = self.logvar(hg)
+            std = torch.exp(0.5 * logvar)  # Convert log variance to standard deviation
+            eps = torch.randn_like(std)    # Sample from N(0,1)
+            return mu + eps * std
+        else:
+            return self.g_embed(hg)

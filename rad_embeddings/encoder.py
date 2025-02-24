@@ -23,11 +23,12 @@ class Encoder():
         env_id: str,
         save_dir: str,
         alg: str,
+        reparam: bool,
         id: str = "rad",
         seed: int | None = None
         ):
         save_dir = save_dir[:-1] if save_dir.endswith("/") else save_dir
-        model, config = get_model(env_id, save_dir, alg, seed)
+        model, config = get_model(env_id, alg, reparam, save_dir, seed)
 
         print("Total number of parameters:", sum(p.numel() for p in model.policy.parameters() if p.requires_grad))
         print(model.policy)

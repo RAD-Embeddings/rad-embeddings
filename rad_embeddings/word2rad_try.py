@@ -119,9 +119,9 @@ class WordTransformer(nn.Module):
 # Hyperparameters
 n_tokens = 10  # Adjust as needed
 embed_dim = 64
-num_heads = 1
+num_heads = 2
 hidden_dim = 64
-num_layers = 1
+num_layers = 2
 output_dim = 32
 
 learning_rate = 0.001
@@ -130,10 +130,10 @@ batch_size = 64
 
 w_length = 10
 
+model_type = "transformer_2_heads_2_layers"
 
 # Model, loss, and optimizer
-model = StringRNN(n_tokens, embed_dim, hidden_dim, output_dim)
-# model = WordTransformer(n_tokens, embed_dim, num_heads, hidden_dim, num_layers, output_dim, w_length)
+model = StringRNN(n_tokens, embed_dim, hidden_dim, output_dim) if model_type == "rnn" else WordTransformer(n_tokens, embed_dim, num_heads, hidden_dim, num_layers, output_dim, w_length)
 
 print("Total number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
 print(model)
@@ -146,11 +146,11 @@ encoder = Encoder(load_file="storage/DFABisimEnv-v1-encoder")
 gen_problem = problem_generator(sampler=RADSampler(), w_length=w_length, n_samples=100)
 
 
-writer = SummaryWriter(log_dir="storage/runs/word2rad/rnn")
+writer = SummaryWriter(log_dir=f"storage/runs/word2rad/{model_type}")
 
 # Training loop
 for epoch in range(num_epochs):
-    loss = 0
+    batch_losses = []
     for _ in range(batch_size):
         dfa, words = next(gen_problem)
         rad = encoder.dfa2rad(dfa)
@@ -158,9 +158,10 @@ for epoch in range(num_epochs):
         radish = model(words)
         # from torchviz import make_dot
         # make_dot(radish).save()
-        loss += encoder.rad2val(torch.cat([rad, radish], dim=1))
+        batch_losses.append(encoder.rad2val(torch.cat([rad, radish], dim=1)))
+    loss = torch.stack(batch_losses).mean()
     optimizer.zero_grad()
-    loss.mean().backward()
+    loss.backward()
     optimizer.step()
     writer.add_scalar('Loss/train', loss.item(), epoch)
 
@@ -168,3 +169,7 @@ for epoch in range(num_epochs):
 
 print("Training complete!")
 writer.close()
+
+torch.save(model.state_dict(), f"storage/runs/word2rad/{model_type}/model")
+model.load_state_dict(torch.load(f"storage/runs/word2rad/{model_type}/model", weights_only=True))
+model.eval()

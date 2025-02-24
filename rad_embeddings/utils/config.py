@@ -8,7 +8,7 @@ from .sb3.dfa_bisim_env_features_extractor import DFABisimEnvFeaturesExtractor
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.env_checker import check_env
 
-def get_config(env_id, alg, save_dir=None, seed=None):
+def get_config(env_id, alg, reparam, save_dir, seed):
     n_envs = 16
     check_env(gym.make(env_id))
     env = make_vec_env(env_id, n_envs=n_envs)
@@ -32,7 +32,7 @@ def get_config(env_id, alg, save_dir=None, seed=None):
             max_grad_norm = 10,
             policy_kwargs = dict(
                 features_extractor_class = DFABisimEnvFeaturesExtractor if "Bisim" in env_id else DFAEnvFeaturesExtractor,
-                features_extractor_kwargs = dict(features_dim = 32, n_tokens = env.unwrapped.get_attr("sampler")[0].n_tokens),
+                features_extractor_kwargs = dict(features_dim = 32, n_tokens = env.unwrapped.get_attr("sampler")[0].n_tokens, reparam = reparam),
                 net_arch=[]
             ),
             verbose = 10,
@@ -55,7 +55,7 @@ def get_config(env_id, alg, save_dir=None, seed=None):
             max_grad_norm = 0.5,
             policy_kwargs = dict(
                 features_extractor_class = DFABisimEnvFeaturesExtractor if "Bisim" in env_id else DFAEnvFeaturesExtractor,
-                features_extractor_kwargs = dict(features_dim = 32, n_tokens = env.unwrapped.get_attr("sampler")[0].n_tokens),
+                features_extractor_kwargs = dict(features_dim = 32, n_tokens = env.unwrapped.get_attr("sampler")[0].n_tokens, reparam = reparam),
                 net_arch=dict(pi=[], vf=[]),
                 share_features_extractor=True,
             ),

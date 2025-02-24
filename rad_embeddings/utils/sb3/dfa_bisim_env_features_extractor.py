@@ -4,10 +4,10 @@ from rad_embeddings.utils.utils import feature_inds, obs2feat
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 class DFABisimEnvFeaturesExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space, features_dim, n_tokens, model_cls=Model):
+    def __init__(self, observation_space, features_dim, n_tokens, reparam=False, model_cls=Model):
         super().__init__(observation_space, features_dim*2)
         in_feat_size = n_tokens + len(feature_inds)
-        self.model = model_cls(in_feat_size, features_dim)
+        self.model = model_cls(in_feat_size, features_dim, reparam)
         self.n_tokens = n_tokens
 
     def forward(self, bisim):

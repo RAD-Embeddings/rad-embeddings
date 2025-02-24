@@ -30,7 +30,7 @@ if __name__ == "__main__":
     encoder_id = env_id + "-encoder"
     save_dir = "storage"
 
-    # Encoder.train(env_id=env_id, save_dir=save_dir, alg="PPO", id=encoder_id, seed=SEED)
+    # Encoder.train(env_id=env_id, save_dir=save_dir, alg="PPO", reparam=True, id=encoder_id, seed=SEED)
 
     encoder = Encoder(load_file=f"{save_dir}/{encoder_id}")
 

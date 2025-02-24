@@ -123,7 +123,7 @@ class DQN(OffPolicyAlgorithm):
             seed=seed,
             sde_support=False,
             optimize_memory_usage=optimize_memory_usage,
-            supported_action_spaces=(spaces.Discrete,),
+            supported_action_spaces=(spaces.Discrete,spaces.Box),
             support_multi_env=True,
         )
 

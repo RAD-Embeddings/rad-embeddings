@@ -92,10 +92,10 @@ def dfa2dist(dfa_obs, n_tokens):
 
     return dist
 
-def get_model(env_id, save_dir, alg, seed):
+def get_model(env_id, alg, reparam, save_dir, seed):
     from .config import get_config
     assert alg == "PPO" or alg == "DQN"
-    config = get_config(env_id=env_id, alg=alg, save_dir=save_dir, seed=seed)
+    config = get_config(env_id, alg, reparam, save_dir, seed)
     if alg == "DQN":
         if "Bisim" in env_id:
             from dqn import DQN
@@ -108,11 +108,25 @@ def get_model(env_id, save_dir, alg, seed):
         return PPO(**config), config
 
 def load_model(load_file):
-    from .config import get_config
+    model = None
+    # try:
+    # print("Here", load_file)
+    # input()
     from stable_baselines3 import PPO
     model = PPO.load(load_file)
-    # config = get_config(env_id="DFABisimEnv", alg="PPO")
-    # model = PPO(**config) # TODO
+    # print(model)
+    # input()
+    # except:
+    #     try:
+    #         from stable_baselines3 import DQN
+    #         model = DQN.load(load_file)
+    #     except:
+    #         try:
+    #             from .dqn import DQN
+    #             model = DQN.load(load_file)
+    #         except Exception as e:
+    #             raise e
+    assert model is not None
     model.set_parameters(load_file)
     for param in model.policy.parameters():
         param.requires_grad = False
