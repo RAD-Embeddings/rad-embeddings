@@ -32,5 +32,5 @@ class Encoder():
         print(model.policy)
 
         model.learn(1_000_000, callback=LoggerCallback(gamma=config["gamma"]))
-        model.save(f"{save_dir}/{id}")
+        model.save(f"{save_dir}/{id}_{seed}")
 

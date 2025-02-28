@@ -1,3 +1,4 @@
+import sys
 import torch
 import random
 import numpy as np
@@ -9,7 +10,7 @@ from encoder import Encoder
 
 if __name__ == "__main__":
 
-    SEED = 42
+    SEED = int(sys.argv[1])
 
     random.seed(SEED)
     np.random.seed(SEED)
@@ -17,22 +18,22 @@ if __name__ == "__main__":
 
     env_id = "DFAEnv-v1"
     encoder_id = env_id + "-encoder"
-    save_dir = "storage"
+    save_dir = "exps_baseline"
 
     Encoder.train(env_id=env_id, save_dir=save_dir, alg="PPO", id=encoder_id, seed=SEED)
 
-    encoder = Encoder(load_file=f"{save_dir}/{encoder_id}")
+    # encoder = Encoder(load_file=f"{save_dir}/{encoder_id}")
 
-    dfa = DFA(
-        start=0,
-        inputs=range(10),
-        label=lambda s: s == 5,
-        transition=lambda s, a: s + 1 if s == a and s < 5 else s,
-    ).minimize()
-    print(dfa)
+    # dfa = DFA(
+    #     start=0,
+    #     inputs=range(10),
+    #     label=lambda s: s == 5,
+    #     transition=lambda s, a: s + 1 if s == a and s < 5 else s,
+    # ).minimize()
+    # print(dfa)
 
-    rad = encoder.dfa2rad(dfa)
-    print(rad)
+    # rad = encoder.dfa2rad(dfa)
+    # print(rad)
 
     # token = encoder.rad2token(rad)
     # print(token)
