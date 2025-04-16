@@ -149,15 +149,14 @@ policy_loss_data = np.array(all_policy_loss)
 value_loss_data = np.array(all_value_loss)
 
 # ======================
-# 5. Compute Statistics (Mean & 90% Confidence Intervals)
+# 5. Compute Statistics (Mean & Full Variance)
 # ======================
+# Instead of a 90% CI, we compute the full variance (min and max) for each timestep.
 def compute_stats(data, num_seeds):
     mean = np.mean(data, axis=0)
-    std  = np.std(data, axis=0, ddof=1)
-    se   = std / np.sqrt(num_seeds)
-    t_value = st.t.ppf(0.95, df=num_seeds - 1)
-    ci = t_value * se
-    return mean, mean - ci, mean + ci
+    lower_bound = np.min(data, axis=0)
+    upper_bound = np.max(data, axis=0)
+    return mean, lower_bound, upper_bound
 
 num_seeds_lc = lc_ts_data.shape[0]
 lc_x = np.mean(lc_ts_data, axis=0)

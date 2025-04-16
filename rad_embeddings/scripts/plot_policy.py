@@ -20,7 +20,6 @@ def read_experiment_data(directory):
         with open(filename, "r") as f:
             for line in f:
                 if "total_timesteps" in line:
-                    # Expected line format: "|    total_timesteps     | 1000       |"
                     parts = line.split("|")
                     if len(parts) >= 3:
                         try:
@@ -29,7 +28,6 @@ def read_experiment_data(directory):
                         except ValueError:
                             continue
                 elif "ep_rew_disc_mean" in line:
-                    # Expected line format: "|    ep_rew_disc_mean     | 0.0769       |"
                     parts = line.split("|")
                     if len(parts) >= 3:
                         try:
@@ -52,47 +50,42 @@ def read_experiment_data(directory):
     all_rewards = [r[:min_length] for r in all_rewards]
     all_timesteps = [t[:min_length] for t in all_timesteps]
     
-    # Convert to NumPy arrays
-    rewards_data = np.array(all_rewards)   # Shape: (num_seeds, num_points)
-    timesteps_data = np.array(all_timesteps) # Shape: (num_seeds, num_points)
+    rewards_data = np.array(all_rewards)   # (num_seeds, num_points)
+    timesteps_data = np.array(all_timesteps) # (num_seeds, num_points)
     
-    # --- Step 4: Compute statistics (mean and 90% confidence intervals) ---
     mean_rewards = np.mean(rewards_data, axis=0)
-    std_rewards = np.std(rewards_data, axis=0, ddof=1)
-    num_seeds = rewards_data.shape[0]
-    se_rewards = std_rewards / np.sqrt(num_seeds)
-    
-    # 90% confidence interval using the t-distribution
-    t_value = st.t.ppf(0.95, df=num_seeds - 1)
-    ci = t_value * se_rewards
+    # Compute full range (min-max across seeds) for each time point.
+    min_rewards = np.min(rewards_data, axis=0)
+    max_rewards = np.max(rewards_data, axis=0)
     
     mean_timesteps = np.mean(timesteps_data, axis=0)
-    lower_bound = mean_rewards - ci
-    upper_bound = mean_rewards + ci
     
-    return mean_timesteps, mean_rewards, lower_bound, upper_bound
+    return mean_timesteps, mean_rewards, min_rewards, max_rewards
 
 # Increase font sizes for all plot elements
 plt.rcParams.update({'font.size': 24})
 
-# Directories for the two experiments
+# Directories for the experiments
 dir_exp = "exps/token_env"
 dir_baseline = "exps_baseline/token_env"
+dir_no_embed = "exps_no_embed"  # Updated directory name
 
-# Read and process data from both directories
-timesteps_exp, rewards_exp, lower_exp, upper_exp = read_experiment_data(dir_exp)
-timesteps_base, rewards_base, lower_base, upper_base = read_experiment_data(dir_baseline)
+# Read and process data from all directories
+timesteps_exp, rewards_exp, min_exp, max_exp = read_experiment_data(dir_exp)
+timesteps_base, rewards_base, min_base, max_base = read_experiment_data(dir_baseline)
+timesteps_no_embed, rewards_no_embed, min_no_embed, max_no_embed = read_experiment_data(dir_no_embed)
 
-# --- Step 5: Plot the learning curves for both experiments ---
+# --- Step 5: Plot the learning curves for all experiments ---
 plt.figure(figsize=(10, 8))
-# Plot for the first experiment
+# Plot for Bisimulation Metrics
 plt.plot(timesteps_exp, rewards_exp, label='Bisimulation Metrics', color='blue')
-plt.fill_between(timesteps_exp, lower_exp, upper_exp, color='blue', alpha=0.3,
-                 label='Bisimulation Metrics 90% CI')
-# Plot for the baseline
+plt.fill_between(timesteps_exp, min_exp, max_exp, color='blue', alpha=0.2)
+# Plot for DFA Solving baseline
 plt.plot(timesteps_base, rewards_base, label='DFA Solving', color='red')
-plt.fill_between(timesteps_base, lower_base, upper_base, color='red', alpha=0.3,
-                 label='DFA Solving 90% CI')
+plt.fill_between(timesteps_base, min_base, max_base, color='red', alpha=0.2)
+# Plot for No Embedding
+plt.plot(timesteps_no_embed, rewards_no_embed, label='No Pretraining', color='green')
+plt.fill_between(timesteps_no_embed, min_no_embed, max_no_embed, color='green', alpha=0.2)
 
 plt.xlabel("Total Timesteps")
 plt.ylabel("Discounted Reward Mean")

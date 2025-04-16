@@ -29,7 +29,7 @@ env_kwargs = dict(env_id=env_id, sampler=reach_avoid_sampler, label_f=token_env.
 
 env = make_vec_env(DFAWrapper, env_kwargs=env_kwargs, n_envs=n_envs)
 
-encoder = Encoder(load_file=f"exps_baseline/DFAEnv-v1-encoder_{SEED}.zip")
+# encoder = Encoder(load_file=f"exps_baseline/DFAEnv-v1-encoder_{SEED}.zip")
 
 config = dict(
     policy = "MultiInputPolicy",
@@ -39,13 +39,13 @@ config = dict(
     gamma = 0.99,
     policy_kwargs = dict(
         features_extractor_class=TokenEnvFeaturesExtractor,
-        features_extractor_kwargs=dict(features_dim=1056, encoder=encoder),
+        features_extractor_kwargs=dict(features_dim=1056),
         net_arch=dict(pi=[64, 64, 64], vf=[64, 64]),
         share_features_extractor=True,
         activation_fn=torch.nn.ReLU
     ),
     verbose = 10,
-    tensorboard_log = f"exps_baseline/token_env/runs/"
+    tensorboard_log = f"exps_no_embed/runs/"
 )
 
 model = PPO(**config)
@@ -56,5 +56,5 @@ print(model.policy)
 logger_callback = LoggerCallback(gamma=config["gamma"])
 
 model.learn(1_000_000, callback=[logger_callback])
-model.save(f"exps_baseline/token_env/token_env_reach_avoid_policy_seed{SEED}")
+model.save(f"exps_no_embed/token_env_reach_avoid_policy_seed{SEED}")
 
