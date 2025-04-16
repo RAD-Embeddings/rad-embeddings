@@ -263,7 +263,7 @@ wheels = [
 
 [[package]]
 name = "dfa-gym"
-version = "0.1.33"
+version = "0.1.12"
 source = { directory = "../dfa-gym" }
 dependencies = [
     { name = "dfa-samplers" },
