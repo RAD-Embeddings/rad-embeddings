@@ -11,12 +11,19 @@ class DFABisimEnvFeaturesExtractor(BaseFeaturesExtractor):
         self.n_tokens = n_tokens
 
     def forward(self, bisim):
-        obs = torch.cat(torch.split(bisim, bisim.shape[1]//2, dim=1), dim=0)
-        rad = self.obs2rad(obs)
-        out = torch.cat(torch.split(rad, rad.shape[0]//2, dim=0), dim=1)
+        dfa_left = bisim["dfa_left"]
+        state_belief_left = bisim["state_belief_left"]
+
+        dfa_right = bisim["dfa_right"]
+        state_belief_right = bisim["state_belief_right"]
+
+        rad_left = rad = self.obs2rad(dfa_left, state_belief_left)
+        rad_right = rad = self.obs2rad(dfa_right, state_belief_right)
+
+        out = torch.cat([rad_left, rad_right], dim=1)
         return out
 
-    def obs2rad(self, obs):
-        feat = obs2feat(obs, n_tokens=self.n_tokens)
+    def obs2rad(self, obs, state_belief):
+        feat = obs2feat(obs, state_belief, n_tokens=self.n_tokens)
         rad = self.model(feat)
         return rad

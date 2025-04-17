@@ -26,12 +26,20 @@ class CustomPPOPolicy(ActorCriticPolicy):
             **kwargs,
         )
         self.value_net = NormL2()
+        # self.softmax = nn.Softmax(dim=1)
+        # self.action_net = nn.Sequential(nn.Linear(64, 10, True), nn.Softmax(dim=1))
+
+    # def forward(self, obs: torch.Tensor, deterministic: bool = False) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    #     actions, values, log_prob = super().forward(obs, deterministic)
+    #     return self.softmax(actions), values, log_prob
 
 class NormL2(nn.Module):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def forward(self, features: torch.Tensor) -> torch.Tensor:
+        # feat1 = features["rad_left"]
+        # feat2 = features["rad_right"]
         feat1 = features[:, :features.shape[1]//2]
         feat2 = features[:, features.shape[1]//2:]
 

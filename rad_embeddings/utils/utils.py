@@ -10,11 +10,11 @@ from dfa.utils import min_distance_to_accept_by_state
 
 feature_inds = {"temp": -5, "rejecting": -4, "accepting": -3, "init": -2, "normal": -1}
 
-def obs2feat(dfa_obs, n_tokens):
+def obs2feat(dfa_obs, state_belief, n_tokens):
     if dfa_obs.ndim == 1:
-        return _process_data(Batch.from_data_list([_obs2feat(dfa_obs, n_tokens=n_tokens)]))
+        return _process_data(Batch.from_data_list([_obs2feat(dfa_obs, state_belief, n_tokens=n_tokens)]))
     elif dfa_obs.ndim == 2:
-        return _process_data(Batch.from_data_list(list(map(lambda x: _obs2feat(x, n_tokens=n_tokens), dfa_obs))))
+        return _process_data(Batch.from_data_list(list(map(lambda x: _obs2feat(*x, n_tokens=n_tokens), zip(dfa_obs, state_belief)))))
     else:
         raise ValueError(f"Invalid ndim for dfa_obs: expected 1 or 2, but got {dfa_obs.ndim}")
 
@@ -26,7 +26,7 @@ def _process_data(data: Data | Batch):
     data.active_edge_indices = torch.stack([i < edge_mask for i in range(max_i)])
     return data
 
-def _obs2feat(dfa_obs, n_tokens):
+def _obs2feat(dfa_obs, state_belief, n_tokens):
     tokens = list(range(n_tokens))
     feature_size = len(tokens) + len(feature_inds)
     dfa_int = int("".join(map(str, map(int, dfa_obs.squeeze().tolist()))))
@@ -70,8 +70,11 @@ def _obs2feat(dfa_obs, n_tokens):
                         edges.append((t_idx, s_idx))
     feat = torch.from_numpy(np.array(list(nodes.values())))
     edge_index = torch.from_numpy(np.array(edges)).T
-    current_state = torch.from_numpy(np.array([1] + [0] * (len(nodes) - 1))) # 0 is the current state
-    return Data(feat=feat, edge_index=edge_index, current_state=current_state, n_nodes=len(nodes), n_edges=len(edges))
+    # current_state = torch.from_numpy(np.array([1] + [0] * (len(nodes) - 1))) # 0 is the current state
+    if len(nodes) > len(state_belief):
+        state_belief = torch.from_numpy(np.pad(state_belief, (0, len(nodes) - len(state_belief)), 'constant', constant_values=0))
+    # state_belief = torch.from_numpy(np.array([1] + [0] * (len(nodes) - 1))) # 0 is the current state
+    return Data(feat=feat, edge_index=edge_index, current_state=state_belief[:len(nodes)], n_nodes=len(nodes), n_edges=len(edges))
 
 def dfa2obs(dfa: DFA) -> Data:
     return np.array([int(i) for i in str(dfa.to_int())])

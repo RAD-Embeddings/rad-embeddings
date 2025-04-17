@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import Batch
 from torch_geometric.nn import GATv2Conv
+from torch_geometric.nn.pool import global_add_pool
 
 class Model(nn.Module):
     def __init__(self, input_dim, output_dim, reparam, **kwargs):
@@ -46,7 +47,8 @@ class Model(nn.Module):
             h = h_next
             # Preserve gradients
             h_history.append(h)
-        hg = h[current_state.bool()]
+        # hg = h[current_state.bool()]
+        hg = global_add_pool(h * current_state.unsqueeze(1), data.batch)
         if self.reparam:
             mu = self.mu(hg)
             logvar = self.logvar(hg)

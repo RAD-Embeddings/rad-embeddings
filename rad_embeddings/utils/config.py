@@ -12,7 +12,7 @@ def get_config(env_id, alg, reparam, save_dir, seed):
     n_envs = 16
     check_env(gym.make(env_id))
     env = make_vec_env(env_id, n_envs=n_envs)
-    assert "DFAEnv" in env_id or "DFABisimEnv" in env_id
+    assert "DFAEnv" in env_id or "DFABisimEnv" in env_id or "DFABisimProbEnv" in env_id
     if alg == "DQN":
         return dict(
             policy = CustomDQNPolicy if "Bisim" in env_id else "MlpPolicy",
