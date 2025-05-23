@@ -11,6 +11,7 @@ from utils.sb3.logger_callback import LoggerCallback
 from utils.sb3.custom_ppo_policy import CustomPPOPolicy
 from utils.sb3.dfa_env_features_extractor import DFAEnvFeaturesExtractor
 from utils.sb3.dfa_bisim_env_features_extractor import DFABisimEnvFeaturesExtractor
+from utils.sb3.dfa_bisim_prob_env_features_extractor import DFABisimProbEnvFeaturesExtractor
 
 class Encoder():
     def __init__(self, load_file: str):
@@ -41,10 +42,18 @@ class Encoder():
 
         save_dir = save_dir[:-1] if save_dir.endswith("/") else save_dir
 
-        check_env(gym.make(env_id))
+        # check_env(gym.make(env_id))
         env = make_vec_env(env_id, n_envs=n_envs)
 
-        assert "DFAEnv" in env_id or "DFABisimEnv" in env_id
+        features_extractor_class = None
+        if "DFAEnv" in env_id:
+            features_extractor_class = DFAEnvFeaturesExtractor
+        elif "DFABisimEnv" in env_id:
+            features_extractor_class = DFABisimEnvFeaturesExtractor
+        elif "DFABisimProbEnv" in env_id:
+            features_extractor_class = DFABisimProbEnvFeaturesExtractor
+        else:
+            raise ValueError(f"Invalid environment id {env_id}, expected DFAEnv, DFABisimEnv, or DFABisimProbEnv from dfa-gym")
 
         config = dict(
             policy = CustomPPOPolicy if "Bisim" in env_id else "MlpPolicy",
@@ -60,7 +69,7 @@ class Encoder():
             vf_coef = 1.0,
             max_grad_norm = 0.5,
             policy_kwargs = dict(
-                features_extractor_class = DFABisimEnvFeaturesExtractor if "Bisim" in env_id else DFAEnvFeaturesExtractor,
+                features_extractor_class = features_extractor_class,
                 features_extractor_kwargs = dict(features_dim = 32, n_tokens = env.unwrapped.get_attr("sampler")[0].n_tokens),
                 net_arch=dict(pi=[], vf=[]),
                 share_features_extractor=True,

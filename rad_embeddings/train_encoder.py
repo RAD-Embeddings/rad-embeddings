@@ -19,7 +19,7 @@ if __name__ == "__main__":
     np.random.seed(SEED)
     torch.manual_seed(SEED)
 
-    env_id = "DFABisimEnv-v1"
+    env_id = "DFABisimProbEnv-v1"
     encoder_id = env_id + "-encoder"
     save_dir = "storage"
 

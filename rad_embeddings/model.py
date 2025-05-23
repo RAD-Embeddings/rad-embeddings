@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import Batch
 from torch_geometric.nn import GATv2Conv
+from torch_geometric.nn.pool import global_add_pool
 
 class Model(nn.Module):
     def __init__(self, input_dim, output_dim, **kwargs):
@@ -20,6 +21,7 @@ class Model(nn.Module):
         feat = data.feat
         edge_index = data.edge_index
         current_state = data.current_state
+        state_belief = data.current_state
         active_node_indices = data.active_node_indices
         active_edge_indices = data.active_edge_indices
         h_0 = self.linear_in(feat.float())
@@ -41,5 +43,8 @@ class Model(nn.Module):
             h = h_next
             # Preserve gradients
             h_history.append(h)
-        hg = h[current_state.bool()]
-        return self.g_embed(hg)
+        # hg = h[current_state.bool()] if state_belief is None else global_add_pool(h * state_belief.unsqueeze(1), data.batch)
+        # return self.g_embed(hg)
+        h = self.g_embed(h)
+        hg = global_add_pool(h * state_belief.unsqueeze(1), data.batch)
+        return hg
