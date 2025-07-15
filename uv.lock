@@ -263,7 +263,7 @@ wheels = [
 
 [[package]]
 name = "dfa-gym"
-version = "0.1.33"
+version = "0.1.1"
 source = { directory = "../dfa-gym" }
 dependencies = [
     { name = "dfa-samplers" },
@@ -835,6 +835,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pettingzoo"
+version = "1.25.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "gymnasium" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/38/cb/cbb8d0e973b284f709ce93a80354d464588301957220f031c51324b464b2/pettingzoo-1.25.0.tar.gz", hash = "sha256:4b8a8552eab07a9c8f37dca094e59ee194003c57e2a7e7348bdf7c62049eecf6", size = 723959 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d3/9a/33fb244264573687ef27b2f436ae98b524c5e8e5edc7c36183a59c5b4748/pettingzoo-1.25.0-py3-none-any.whl", hash = "sha256:f385bccbebdad73a0c3da884344aea6e2614aa962b653c790b06ef9ab162d651", size = 852489 },
+]
+
+[[package]]
 name = "pillow"
 version = "11.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1128,6 +1141,20 @@ wheels = [
 ]
 
 [[package]]
+name = "supersuit"
+version = "3.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "gymnasium" },
+    { name = "numpy" },
+    { name = "tinyscaler" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7c/68/16b774842f9be011d2accc6ab86bc3808854a36ce5456e4e19b9ad7c484b/supersuit-3.10.0.tar.gz", hash = "sha256:85cc4723e2ee4fc7284e0e5586d9e20360ee073bc0d8b997fe48686c83cd348a", size = 34350 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/6e/fce0b8179ba9e99c40cd3fb013657110e4d5ca894de3f9aa4962b6a9d86c/supersuit-3.10.0-py3-none-any.whl", hash = "sha256:fd0b9e351808d3efaedafcbe48a6beb1f6a87828ccfeaf410af4b87e32882a7f", size = 50180 },
+]
+
+[[package]]
 name = "sympy"
 version = "1.13.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1179,18 +1206,36 @@ wheels = [
 ]
 
 [[package]]
+name = "tinyscaler"
+version = "1.2.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0d/59/6b6495fe9bb3153306a4bd6dd24c78ff74eaf64f90fc6e545ede0574cfbe/tinyscaler-1.2.8.tar.gz", hash = "sha256:0ce3b77562f1db74b2035ccaf62807af043333ce655e71effd6ec85fbf8ded06", size = 156935 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4b/65/06fa456d375b71672affd292dd79f199b21a574eb0501afa142f85133b99/tinyscaler-1.2.8-cp312-cp312-macosx_10_9_universal2.whl", hash = "sha256:fcafd6a8b7ac8c8eabc560f99f987e3e9c00b32a5f3472b28ee865db9bf264b2", size = 179781 },
+    { url = "https://files.pythonhosted.org/packages/b7/cf/528a73de4ad128de99bf7cc0e80f236aeeb36fda1e2768a7eb73210a91ff/tinyscaler-1.2.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7474fe93740b0aa045e4e2ad60f8df6d5d570c4ea903c6d63ca3868efd8f4e22", size = 563642 },
+    { url = "https://files.pythonhosted.org/packages/68/d0/0b0abfde6acdf79b41ea685067a52d3e47f3b1fb4a0f4f49d9c6f281a3c7/tinyscaler-1.2.8-cp312-cp312-win_amd64.whl", hash = "sha256:6a7c18d9c082f30193bd23a6eb8ad84d2ee9b224138c8c25a76db96cba71a473", size = 83779 },
+]
+
+[[package]]
 name = "token-env"
-version = "0.2.4"
+version = "0.2.3"
 source = { directory = "../token-env" }
 dependencies = [
     { name = "gymnasium" },
     { name = "numpy" },
+    { name = "pettingzoo" },
+    { name = "supersuit" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "gymnasium", specifier = ">=1.0.0" },
     { name = "numpy", specifier = ">=1.20" },
+    { name = "pettingzoo", specifier = ">=1.25.0" },
+    { name = "supersuit", specifier = ">=3.10.0" },
 ]
 
 [[package]]
