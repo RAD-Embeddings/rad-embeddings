@@ -25,7 +25,7 @@ reach_avoid_sampler = ReachAvoidSampler(n_tokens=n_tokens, max_size=6, p=None, p
 # env_kwargs = dict(env_id=env_id, sampler=RADSampler(n_tokens=n_tokens), label_f=token_env.TokenEnv.label_f)
 # env_kwargs = dict(env_id=env_id, sampler=ReachAvoidSampler(n_tokens=n_tokens, max_size=4, prob_stutter=1.0), label_f=token_env.TokenEnv.label_f)
 
-env_kwargs = dict(env_id=env_id, sampler=reach_avoid_sampler, label_f=token_env.TokenEnv.label_f)
+env_kwargs = dict(env=env_id, sampler=reach_avoid_sampler, label_f=token_env.TokenEnv.label_f)
 
 env = make_vec_env(DFAWrapper, env_kwargs=env_kwargs, n_envs=n_envs)
 

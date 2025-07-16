@@ -1,7 +1,9 @@
 from rad_embeddings.utils.sb3.dfa_env_features_extractor import DFAEnvFeaturesExtractor
 from rad_embeddings.utils.sb3.dfa_bisim_env_features_extractor import DFABisimEnvFeaturesExtractor
 from rad_embeddings.utils.sb3.token_env_features_extractor import TokenEnvFeaturesExtractor
+from rad_embeddings.utils.sb3.marl_token_env_features_extractor import MarlTokenEnvFeaturesExtractor
 from rad_embeddings.utils.sb3.logger_callback import LoggerCallback
+from rad_embeddings.utils.sb3.marl_logger_callback import MarlLoggerCallback
 from rad_embeddings.utils.utils import obs2feat, dfa2obs, dfa2dist, get_model
 from rad_embeddings.utils.dqn import DQN
 from rad_embeddings.utils.sb3.custom_ppo_policy import CustomPPOPolicy
