@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import Batch
 from torch_geometric.nn import GATv2Conv
+from torch_geometric.nn.pool import global_add_pool
 
 class Model(nn.Module):
     def __init__(self, input_dim, output_dim, **kwargs):

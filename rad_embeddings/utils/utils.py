@@ -10,7 +10,7 @@ from dfa.utils import min_distance_to_accept_by_state
 
 feature_inds = {"temp": -5, "rejecting": -4, "accepting": -3, "init": -2, "normal": -1}
 
-def obs2feat(dfa_obs, n_tokens):
+def obs2feat(dfa_obs, state_belief, n_tokens):
     if dfa_obs.ndim == 1:
         return _process_data(Batch.from_data_list([_obs2feat(dfa_obs, n_tokens=n_tokens)]))
     elif dfa_obs.ndim == 2:

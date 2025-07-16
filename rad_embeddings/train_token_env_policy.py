@@ -39,7 +39,7 @@ config = dict(
     gamma = 0.99,
     policy_kwargs = dict(
         features_extractor_class=TokenEnvFeaturesExtractor,
-        features_extractor_kwargs=dict(features_dim=1056, encoder=encoder),
+        features_extractor_kwargs=dict(features_dim=1056),
         net_arch=dict(pi=[64, 64, 64], vf=[64, 64]),
         share_features_extractor=True,
         activation_fn=torch.nn.ReLU
