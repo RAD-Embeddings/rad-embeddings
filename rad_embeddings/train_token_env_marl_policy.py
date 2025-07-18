@@ -3,15 +3,15 @@ import torch
 import token_env
 import gymnasium as gym
 from encoder import Encoder
-from dfa_gym import DFAWrapper
+from dfa_gym import DFAWrapper, gym2zoo
 from stable_baselines3 import PPO
-from rad_embeddings.utils import MarlTokenEnvFeaturesExtractor, MarlLoggerCallback
+from rad_embeddings.utils import MarlTokenEnvFeaturesExtractor, MarlLoggerCallback, LoggerCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.env_checker import check_env
 from dfa_samplers import ReachSampler, ReachAvoidSampler, RADSampler
 
 import supersuit as ss
-from pettingzoo.test import parallel_api_test
+from pettingzoo.test import api_test, parallel_api_test
 from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvStepReturn, VecEnvWrapper
@@ -32,31 +32,26 @@ class Sb3ShimWrapper(VecEnvWrapper):
 
 SEED = int(sys.argv[1])
 
-n_envs = 16
+n_envs = 8
 env_id = "TokenEnv-2-agents-fixed-v1"
 
 env = gym.make(env_id)
-
-env = DFAWrapper(env=env, n_agents=env.unwrapped.n_agents)
-
-# print(env.observation_space)
-# input()
-
+env = DFAWrapper(env=env, n_agents=env.unwrapped.n_agents, label_f=token_env.TokenEnv.label_f)
 n_tokens = env.unwrapped.n_tokens
+env = gym2zoo(env, black_death=True)
+parallel_api_test(env)
 
-
-env = token_env.utils.gym2zoo(env)
-
-# parallel_api_test(env)
+env = gym.make(env_id)
+env = DFAWrapper(env=env, n_agents=env.unwrapped.n_agents, label_f=token_env.TokenEnv.label_f)
+env = gym2zoo(env, black_death=True)
 
 # env = ss.black_death_v3(env) # AssertionError: observation sapces for black death must be Box spaces, is Dict('dfa_obs': Box(0, 9, (370,), int64), 'obs': Box(0, 1, (11, 7, 7), uint8))
 env = ss.pettingzoo_env_to_vec_env_v1(env)
-env.black_death = True
-env = ss.concat_vec_envs_v1(env, 8, num_cpus=1, base_class="stable_baselines3")
+# env.black_death = True
+env = ss.concat_vec_envs_v1(env, n_envs, num_cpus=1, base_class="stable_baselines3")
 env = VecMonitor(env)
-# env = Sb3ShimWrapper(env)
 
-print(env.observation_space)
+
 
 # check_env(env)
 

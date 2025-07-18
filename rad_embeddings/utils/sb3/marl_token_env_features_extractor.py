@@ -19,29 +19,29 @@ class MarlTokenEnvFeaturesExtractor(BaseFeaturesExtractor):
             nn.Flatten()
         )
 
-    # def forward(self, dict_obs):
-    #     dfa_obs = dict_obs["dfa_obs"]
-    #     obs = dict_obs["obs"]
-    #     rad = self.encoder.obs2rad(dfa_obs)
-    #     obs = self.image_conv(obs)
-    #     obs = torch.cat((obs, rad), dim=1)
-    #     return obs
     def forward(self, dict_obs):
         dfa_obs = dict_obs["dfa_obs"]
         obs = dict_obs["obs"]
-
-        # Find non-zero entries (assuming last dimension encodes the vector)
-        nonzero_mask = (dfa_obs != 0).any(dim=1)
-        
-        # Initialize rad tensor with zeros
-        rad = torch.zeros(size=(dfa_obs.shape[0], 32), device=dfa_obs.device, dtype=dfa_obs.dtype)
-
-        # Only pass non-zero entries through the encoder
-        if nonzero_mask.any():
-            encoded = self.encoder.obs2rad(dfa_obs[nonzero_mask])
-            rad[nonzero_mask] = encoded
-
-        # Process obs and concatenate
+        rad = self.encoder.obs2rad(dfa_obs)
         obs = self.image_conv(obs)
         obs = torch.cat((obs, rad), dim=1)
         return obs
+    # def forward(self, dict_obs):
+    #     dfa_obs = dict_obs["dfa_obs"]
+    #     obs = dict_obs["obs"]
+
+    #     # Find non-zero entries (assuming last dimension encodes the vector)
+    #     nonzero_mask = (dfa_obs != 0).any(dim=1)
+        
+    #     # Initialize rad tensor with zeros
+    #     rad = torch.zeros(size=(dfa_obs.shape[0], 32), device=dfa_obs.device, dtype=dfa_obs.dtype)
+
+    #     # Only pass non-zero entries through the encoder
+    #     if nonzero_mask.any():
+    #         encoded = self.encoder.obs2rad(dfa_obs[nonzero_mask])
+    #         rad[nonzero_mask] = encoded
+
+    #     # Process obs and concatenate
+    #     obs = self.image_conv(obs)
+    #     obs = torch.cat((obs, rad), dim=1)
+    #     return obs
