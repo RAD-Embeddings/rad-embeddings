@@ -81,7 +81,7 @@ config = dict(
         activation_fn=torch.nn.ReLU
     ),
     verbose = 10,
-    tensorboard_log = f"exps_no_embed/runs/"
+    tensorboard_log = f"exps_marl/runs/"
 )
 
 model = PPO(**config)
@@ -93,5 +93,5 @@ logger_callback = MarlLoggerCallback(gamma=config["gamma"])
 
 # model.learn(1_000_000, callback=[logger_callback])
 model.learn(1_000_000, callback=[logger_callback])
-model.save(f"exps_no_embed/token_env_reach_avoid_policy_seed{SEED}")
+model.save(f"exps_marl/token_env_marl_reach_avoid_policy_seed_{SEED}")
 
