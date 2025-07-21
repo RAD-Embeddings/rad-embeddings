@@ -16,6 +16,8 @@ class Model(nn.Module):
         self.activation = nn.Tanh()
         self.g_embed = nn.Linear(self.hidden_dim, self.output_dim)
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # def forward(self, data):
     #     feat = data.feat
     #     edge_index = data.edge_index
@@ -32,11 +34,11 @@ class Model(nn.Module):
     #     return self.g_embed(hg)
 
     def forward(self, data):
-        feat = data.feat
-        edge_index = data.edge_index
-        current_state = data.current_state
-        active_node_indices = data.active_node_indices
-        active_edge_indices = data.active_edge_indices
+        feat = data.feat.to(self.device)
+        edge_index = data.edge_index.to(self.device)
+        current_state = data.current_state.to(self.device)
+        active_node_indices = data.active_node_indices.to(self.device)
+        active_edge_indices = data.active_edge_indices.to(self.device)
         h_0 = self.linear_in(feat.float())
         h = h_0.clone()
         # Track intermediate states

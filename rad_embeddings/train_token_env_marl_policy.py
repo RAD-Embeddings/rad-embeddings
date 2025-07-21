@@ -32,7 +32,7 @@ class Sb3ShimWrapper(VecEnvWrapper):
 
 SEED = int(sys.argv[1])
 
-n_envs = 8
+n_envs = 16
 env_id = "TokenEnv-2-agents-fixed-v1"
 
 env = gym.make(env_id)
@@ -42,28 +42,17 @@ env = gym2zoo(env, black_death=True)
 parallel_api_test(env)
 
 env = gym.make(env_id)
-env = DFAWrapper(env=env, n_agents=env.unwrapped.n_agents, label_f=token_env.TokenEnv.label_f)
+
+reach_avoid_sampler = ReachAvoidSampler(n_tokens=n_tokens, max_size=6, p=None, prob_stutter=1.0)
+
+env = DFAWrapper(env=env, n_agents=env.unwrapped.n_agents, sampler=reach_avoid_sampler, label_f=token_env.TokenEnv.label_f)
 env = gym2zoo(env, black_death=True)
 
 # env = ss.black_death_v3(env) # AssertionError: observation sapces for black death must be Box spaces, is Dict('dfa_obs': Box(0, 9, (370,), int64), 'obs': Box(0, 1, (11, 7, 7), uint8))
 env = ss.pettingzoo_env_to_vec_env_v1(env)
-# env.black_death = True
 env = ss.concat_vec_envs_v1(env, n_envs, num_cpus=1, base_class="stable_baselines3")
 env = VecMonitor(env)
 
-
-
-# check_env(env)
-
-
-# reach_sampler = ReachSampler(n_tokens=n_tokens, max_size=4, prob_stutter=1.0)
-reach_avoid_sampler = ReachAvoidSampler(n_tokens=n_tokens, max_size=6, p=None, prob_stutter=1.0)
-
-# env_kwargs = dict(env_id=env_id, sampler=RADSampler(n_tokens=n_tokens), label_f=token_env.TokenEnv.label_f)
-# env_kwargs = dict(env_id=env_id, sampler=ReachAvoidSampler(n_tokens=n_tokens, max_size=4, prob_stutter=1.0), label_f=token_env.TokenEnv.label_f)
-
-# env_kwargs = dict(env_id=env_id, sampler=reach_avoid_sampler, label_f=token_env.TokenEnv.label_f)
-# env = make_vec_env(DFAWrapper, env_kwargs=env_kwargs, n_envs=n_envs)
 
 encoder = Encoder(load_file=f"exps/DFABisimEnv-v1-encoder_{SEED}.zip")
 
