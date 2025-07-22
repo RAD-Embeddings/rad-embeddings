@@ -18,6 +18,7 @@ class MarlTokenEnvFeaturesExtractor(BaseFeaturesExtractor):
             nn.ReLU(),
             nn.Flatten()
         )
+        self.obs_embed_size = (w - 3) * (h - 3) * 64
 
     # def forward(self, dict_obs):
     #     # print(dict_obs.keys())
@@ -51,10 +52,6 @@ class MarlTokenEnvFeaturesExtractor(BaseFeaturesExtractor):
     #     obs = torch.cat((obs, rad), dim=1)
     #     return obs
 
-    @staticmethod
-    def get_env_embed_size(grid_size):
-        return (x - 3) * (y - 3) * 64
-
     def forward(self, dict_obs):
         dfa_obs = dict_obs["dfa_obs"]  # shape: (b, n, l)
         obs = dict_obs["obs"]
@@ -63,21 +60,27 @@ class MarlTokenEnvFeaturesExtractor(BaseFeaturesExtractor):
         flat_dfa_obs = dfa_obs.view(b * n, l)  # shape: (b*n, l)
 
         # Identify non-zero rows
-        non_zero_mask = ~(flat_dfa_obs == 0).all(dim=1)  # shape: (b*n,)
+        dfa_obs_non_zero_mask = ~(flat_dfa_obs == 0).all(dim=1)  # shape: (b*n,)
 
         # Allocate full output tensor filled with zeros
         rad = torch.zeros((b * n, self.encoder.output_dim), device=dfa_obs.device)
 
         # Encode only non-zero rows
-        if non_zero_mask.any():
-            encoded = self.encoder.obs2rad(flat_dfa_obs[non_zero_mask])  # shape: (num_nonzero, D)
-            rad[non_zero_mask] = encoded  # insert into the correct positions
+        if dfa_obs_non_zero_mask.any():
+            encoded = self.encoder.obs2rad(flat_dfa_obs[dfa_obs_non_zero_mask])  # shape: (num_nonzero, D)
+            rad[dfa_obs_non_zero_mask] = encoded  # insert into the correct positions
 
         rad = rad.view(b, -1)  # shape: (b, n * D)
-        obs = self.image_conv(obs)
-        obs = torch.cat((obs, rad), dim=1)
 
-        return obs
+        obs_embed = torch.zeros((b, self.obs_embed_size), device=obs.device)
+
+        flat_obs = obs.view(b, -1)
+        obs_non_zero_mask = ~(flat_obs == 0).all(dim=1)
+        if obs_non_zero_mask.any():
+            encoded = self.image_conv(obs[obs_non_zero_mask])
+            obs_embed[obs_non_zero_mask] = encoded
+
+        return torch.cat((obs_embed, rad), dim=1)
 
 
     # def forward(self, dict_obs):
