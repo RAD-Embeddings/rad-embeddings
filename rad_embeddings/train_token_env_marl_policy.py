@@ -36,6 +36,7 @@ n_envs = 16
 env_id = "TokenEnv-2-agents-fixed-v1"
 
 env = gym.make(env_id)
+n_agents = env.unwrapped.n_agents
 env = DFAWrapper(env=env, n_agents=env.unwrapped.n_agents, label_f=token_env.TokenEnv.label_f)
 n_tokens = env.unwrapped.n_tokens
 env = gym2zoo(env, black_death=True)
@@ -64,7 +65,7 @@ config = dict(
     gamma = 0.99,
     policy_kwargs = dict(
         features_extractor_class=MarlTokenEnvFeaturesExtractor,
-        features_extractor_kwargs=dict(features_dim=1056, encoder=encoder),
+        features_extractor_kwargs=dict(features_dim=1024 + 32 * n_agents, encoder=encoder),
         net_arch=dict(pi=[64, 64, 64], vf=[64, 64]),
         share_features_extractor=True,
         activation_fn=torch.nn.ReLU

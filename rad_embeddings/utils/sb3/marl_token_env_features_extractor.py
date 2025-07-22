@@ -21,10 +21,12 @@ class MarlTokenEnvFeaturesExtractor(BaseFeaturesExtractor):
 
     def forward(self, dict_obs):
         dfa_obs = dict_obs["dfa_obs"]
+        other_dfa_obs = dict_obs["other_dfa_obs"]
         obs = dict_obs["obs"]
         rad = self.encoder.obs2rad(dfa_obs)
+        other_rad = self.encoder.obs2rad(other_dfa_obs)
         obs = self.image_conv(obs)
-        obs = torch.cat((obs, rad), dim=1)
+        obs = torch.cat((obs, rad, other_rad), dim=1)
         return obs
     # def forward(self, dict_obs):
     #     dfa_obs = dict_obs["dfa_obs"]
