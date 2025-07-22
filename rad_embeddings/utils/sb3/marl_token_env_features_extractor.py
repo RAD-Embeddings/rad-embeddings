@@ -5,8 +5,8 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from rad_embeddings.utils.utils import feature_inds, obs2feat
 
 class MarlTokenEnvFeaturesExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space, features_dim, encoder):
-        super().__init__(observation_space, features_dim)
+    def __init__(self, observation_space, n_agents, encoder):
+        super().__init__(observation_space, (observation_space["obs"].shape[1] - 3) * (observation_space["obs"].shape[2] - 3) * 64 + n_agents * encoder.output_dim)
         self.encoder = encoder
         c, w, h = observation_space["obs"].shape # CxWxH
         self.image_conv = nn.Sequential(
@@ -19,15 +19,76 @@ class MarlTokenEnvFeaturesExtractor(BaseFeaturesExtractor):
             nn.Flatten()
         )
 
+    # def forward(self, dict_obs):
+    #     # print(dict_obs.keys())
+    #     dfa_obs = dict_obs["dfa_obs"]                     # shape: [48, 188]
+    #     other_dfa_obss = dict_obs["other_dfa_obss"]       # shape: [48, 2, 188]
+    #     obs = dict_obs["obs"]
+
+    #     # Pass only the [48, 188] dfa_obs to obs2rad
+    #     rad = self.encoder.obs2rad(dfa_obs)               # shape: [48, D]
+
+    #     # Reshape other_dfa_obss from [48, 2, 188] → [96, 188] for obs2rad
+    #     other_dfa_obss_flat = other_dfa_obss.view(-1, other_dfa_obss.shape[-1])  # shape: [96, 188]
+    #     other_rad = self.encoder.obs2rad(other_dfa_obss_flat)                    # shape: [96, D]
+
+    #     # Reshape back to [48, 2 * D] to concatenate per batch item
+    #     B, K, D_in = other_dfa_obss.shape  # B=48, K=2, D_in=188
+    #     D_out = other_rad.shape[1]        # output dim of obs2rad
+    #     other_rad = other_rad.view(B, K * D_out)          # shape: [48, 2 * D]
+
+    #     obs = self.image_conv(obs)                        # shape: [48, ?]
+    #     obs = torch.cat((obs, rad, other_rad), dim=1)     # shape: [48, ? + D + 2*D]
+    #     return obs
+
+    # def forward(self, dict_obs):
+    #     dfa_obs = dict_obs["dfa_obs"]
+    #     obs = dict_obs["obs"]
+    #     all_zero_mask = torch.all(dfa_obs == 0, dim=-1)  # shape: (b, n)
+    #     b, n, l = dfa_obs.shape
+    #     rad = self.encoder.obs2rad(dfa_obs.view(b * n, l)).view(b, -1)
+    #     obs = self.image_conv(obs)
+    #     obs = torch.cat((obs, rad), dim=1)
+    #     return obs
+
+    @staticmethod
+    def get_env_embed_size(grid_size):
+        return (x - 3) * (y - 3) * 64
+
     def forward(self, dict_obs):
-        dfa_obs = dict_obs["dfa_obs"]
-        other_dfa_obs = dict_obs["other_dfa_obs"]
+        dfa_obs = dict_obs["dfa_obs"]  # shape: (b, n, l)
         obs = dict_obs["obs"]
-        rad = self.encoder.obs2rad(dfa_obs)
-        other_rad = self.encoder.obs2rad(other_dfa_obs)
+
+        b, n, l = dfa_obs.shape
+        flat_dfa_obs = dfa_obs.view(b * n, l)  # shape: (b*n, l)
+
+        # Identify non-zero rows
+        non_zero_mask = ~(flat_dfa_obs == 0).all(dim=1)  # shape: (b*n,)
+
+        # Allocate full output tensor filled with zeros
+        rad = torch.zeros((b * n, self.encoder.output_dim), device=dfa_obs.device)
+
+        # Encode only non-zero rows
+        if non_zero_mask.any():
+            encoded = self.encoder.obs2rad(flat_dfa_obs[non_zero_mask])  # shape: (num_nonzero, D)
+            rad[non_zero_mask] = encoded  # insert into the correct positions
+
+        rad = rad.view(b, -1)  # shape: (b, n * D)
         obs = self.image_conv(obs)
-        obs = torch.cat((obs, rad, other_rad), dim=1)
+        obs = torch.cat((obs, rad), dim=1)
+
         return obs
+
+
+    # def forward(self, dict_obs):
+    #     dfa_obs = dict_obs["dfa_obs"]
+    #     other_dfa_obs = dict_obs["other_dfa_obss"].squeeze()
+    #     obs = dict_obs["obs"]
+    #     rad = self.encoder.obs2rad(dfa_obs)
+    #     other_rad = self.encoder.obs2rad(other_dfa_obs)
+    #     obs = self.image_conv(obs)
+    #     obs = torch.cat((obs, rad, other_rad), dim=1)
+    #     return obs
     # def forward(self, dict_obs):
     #     dfa_obs = dict_obs["dfa_obs"]
     #     obs = dict_obs["obs"]

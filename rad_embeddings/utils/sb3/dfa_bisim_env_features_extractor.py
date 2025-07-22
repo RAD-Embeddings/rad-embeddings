@@ -9,6 +9,7 @@ class DFABisimEnvFeaturesExtractor(BaseFeaturesExtractor):
         in_feat_size = n_tokens + len(feature_inds)
         self.model = model_cls(in_feat_size, features_dim)
         self.n_tokens = n_tokens
+        self.encoder_output_dim = features_dim
 
     def forward(self, bisim):
         obs = torch.cat(torch.split(bisim, bisim.shape[1]//2, dim=1), dim=0)

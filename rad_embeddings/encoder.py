@@ -7,6 +7,7 @@ from utils.sb3.logger_callback import LoggerCallback
 class Encoder():
     def __init__(self, load_file: str):
         model = load_model(load_file)
+        self.output_dim = model.policy.features_extractor.encoder_output_dim
         self.n_tokens = model.policy.features_extractor.n_tokens
         self.obs2rad = model.policy.features_extractor.obs2rad
         self.rad2token = lambda _rad: model.policy.action_net(_rad).argmax(dim=1)

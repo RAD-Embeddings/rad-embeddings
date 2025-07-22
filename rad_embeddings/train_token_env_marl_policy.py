@@ -36,13 +36,18 @@ n_envs = 16
 env_id = "TokenEnv-2-agents-fixed-v1"
 
 env = gym.make(env_id)
-n_agents = env.unwrapped.n_agents
 env = DFAWrapper(env=env, n_agents=env.unwrapped.n_agents, label_f=token_env.TokenEnv.label_f)
 n_tokens = env.unwrapped.n_tokens
 env = gym2zoo(env, black_death=True)
 parallel_api_test(env)
 
-env = gym.make(env_id)
+# env = gym.make(env_id)
+env = token_env.TokenEnv(
+    n_agents=3,
+    size=(5, 5),
+    use_fixed_map=True
+)
+n_agents = env.unwrapped.n_agents
 
 reach_avoid_sampler = ReachAvoidSampler(n_tokens=n_tokens, max_size=6, p=None, prob_stutter=1.0)
 
@@ -65,7 +70,7 @@ config = dict(
     gamma = 0.99,
     policy_kwargs = dict(
         features_extractor_class=MarlTokenEnvFeaturesExtractor,
-        features_extractor_kwargs=dict(features_dim=1024 + 32 * n_agents, encoder=encoder),
+        features_extractor_kwargs=dict(n_agents=n_agents, encoder=encoder),
         net_arch=dict(pi=[64, 64, 64], vf=[64, 64]),
         share_features_extractor=True,
         activation_fn=torch.nn.ReLU
