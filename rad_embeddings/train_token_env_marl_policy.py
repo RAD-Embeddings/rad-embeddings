@@ -63,12 +63,12 @@ config = dict(
 )
 
 
-# run = wandb.init(
-#     entity="beyazit-y-berkeley-eecs",
-#     project="rad-marl",
-#     config=config,
-#     sync_tensorboard=True
-# )
+run = wandb.init(
+    entity="beyazit-y-berkeley-eecs",
+    project="rad-marl",
+    config=config,
+    sync_tensorboard=True
+)
 
 model = PPO(**config)
 
@@ -80,4 +80,4 @@ logger_callback = MarlLoggerCallback(gamma=config["gamma"])
 model.learn(10_000_000, callback=[logger_callback])
 model.save(f"exps_marl/token_env_marl_reach_avoid_policy_seed_{SEED}")
 
-# wandb.finish()
+wandb.finish()
