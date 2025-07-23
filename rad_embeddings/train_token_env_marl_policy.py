@@ -16,15 +16,16 @@ from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvStepReturn, VecEnvWrapper
 
-SEED = int(sys.argv[1])
+env_id = "DFABisimEnv-5-tokens"
+encoder_id = env_id + "-encoder"
+save_dir = "pretrained_encoders"
+Encoder.train(env_id=env_id, save_dir=save_dir, alg="PPO", id=encoder_id)
+encoder = Encoder(load_file=f"{save_dir}/{encoder_id}")
 
 n_envs = 16
-env_id = "TokenEnv-2-agents-fixed-v1"
-
-
-# env = gym.make(env_id)
 env = token_env.TokenEnv(
     n_agents=3,
+    n_tokens=5,
     size=(5, 5),
     use_fixed_map=True
 )
@@ -33,17 +34,19 @@ n_agents = env.unwrapped.n_agents
 
 reach_avoid_sampler = ReachAvoidSampler(n_tokens=n_tokens, max_size=6, p=None, prob_stutter=1.0)
 
-env = DFAWrapper(env=env, n_agents=env.unwrapped.n_agents, sampler=reach_avoid_sampler, label_f=token_env.TokenEnv.label_f)
+env = DFAWrapper(
+    env=env,
+    n_agents=n_agents,
+    sampler=reach_avoid_sampler,
+    r_agg_f=token_env.TokenEnv.r_agg_f,
+    label_f=token_env.TokenEnv.label_f
+)
+
 env = gym2zoo(env, black_death=True)
-
-
 # env = ss.black_death_v3(env) # AssertionError: observation sapces for black death must be Box spaces, is Dict('dfa_obs': Box(0, 9, (370,), int64), 'obs': Box(0, 1, (11, 7, 7), uint8))
 env = ss.pettingzoo_env_to_vec_env_v1(env)
 env = ss.concat_vec_envs_v1(env, n_envs, num_cpus=1, base_class="stable_baselines3")
 env = VecMonitor(env)
-
-
-encoder = Encoder(load_file=f"exps/DFABisimEnv-v1-encoder_{SEED}.zip")
 
 config = dict(
     policy = "MultiInputPolicy",
@@ -61,7 +64,6 @@ config = dict(
     verbose = 10,
     tensorboard_log = f"exps_marl/runs/"
 )
-
 
 run = wandb.init(
     entity="beyazit-y-berkeley-eecs",

@@ -33,5 +33,8 @@ class Encoder():
         print(model.policy)
 
         model.learn(1_000_000, callback=LoggerCallback(gamma=config["gamma"]))
-        model.save(f"{save_dir}/{id}_{seed}")
+        if seed is None:
+            model.save(f"{save_dir}/{id}")
+        else:
+            model.save(f"{save_dir}/{id}_{seed}")
 
