@@ -15,6 +15,7 @@ dependencies = [
     "token-env>=0.2.1",
     "torch<2.3.0",
     "torch-geometric>=2.6.1",
+    "supersuit",
 ]
 
 [build-system]

@@ -11,7 +11,7 @@ from stable_baselines3.common.env_checker import check_env
 def get_config(env_id, save_dir, alg, seed):
     n_envs = 16
     check_env(gym.make(env_id))
-    env = make_vec_env(env_id, n_envs=n_envs)
+    env = make_vec_env(env_id, n_envs=n_envs, env_kwargs={"render_mode": "human"})
     assert "DFAEnv" in env_id or "DFABisimEnv" in env_id
     if alg == "DQN":
         return dict(

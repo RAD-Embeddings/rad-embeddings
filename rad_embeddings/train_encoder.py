@@ -10,17 +10,17 @@ from encoder import Encoder
 
 if __name__ == "__main__":
 
-    SEED = int(sys.argv[1])
+    # SEED = int(sys.argv[1])
 
-    random.seed(SEED)
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
+    # random.seed(SEED)
+    # np.random.seed(SEED)
+    # torch.manual_seed(SEED)
 
-    env_id = "DFAEnv-v1"
+    env_id = sys.argv[1]
     encoder_id = env_id + "-encoder"
-    save_dir = "exps_baseline"
+    save_dir = "pretrained_encoders"
 
-    Encoder.train(env_id=env_id, save_dir=save_dir, alg="PPO", id=encoder_id, seed=SEED)
+    Encoder.train(env_id=env_id, save_dir=save_dir, alg="PPO", id=encoder_id)
 
     # encoder = Encoder(load_file=f"{save_dir}/{encoder_id}")
 
