@@ -1,6 +1,7 @@
 import sys
 import torch
 import wandb
+import argparse
 import token_env
 import gymnasium as gym
 from encoder import Encoder
@@ -16,21 +17,29 @@ from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv, VecEnvStepReturn, VecEnvWrapper
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--n_agents", type=int, default=3, help="Number of agents in the environment")
+parser.add_argument("--use_fixed_map", action="store_true", help="Use a fixed map layout")
+parser.add_argument("--wandb", action="store_true", help="Enable wandb logging")
+args = parser.parse_args()
+
 env_id = "DFABisimEnv-5-tokens"
 encoder_id = env_id + "-encoder"
 save_dir = "pretrained_encoders"
-Encoder.train(env_id=env_id, save_dir=save_dir, alg="PPO", id=encoder_id)
+# Encoder.train(env_id=env_id, save_dir=save_dir, alg="PPO", id=encoder_id)
 encoder = Encoder(load_file=f"{save_dir}/{encoder_id}")
 
 n_envs = 16
 env = token_env.TokenEnv(
-    n_agents=3,
+    n_agents=args.n_agents,
     n_tokens=5,
     size=(5, 5),
-    use_fixed_map=True
+    use_fixed_map=args.use_fixed_map
 )
 n_tokens = env.unwrapped.n_tokens
 n_agents = env.unwrapped.n_agents
+size = env.unwrapped.size
+use_fixed_map = env.unwrapped.use_fixed_map
 
 reach_avoid_sampler = ReachAvoidSampler(n_tokens=n_tokens, max_size=6, p=None, prob_stutter=1.0)
 
@@ -65,12 +74,13 @@ config = dict(
     tensorboard_log = f"exps_marl/runs/"
 )
 
-run = wandb.init(
-    entity="beyazit-y-berkeley-eecs",
-    project="rad-marl",
-    config=config,
-    sync_tensorboard=True
-)
+if args.wandb:
+    run = wandb.init(
+        entity="beyazit-y-berkeley-eecs",
+        project="rad-marl",
+        config=config,
+        sync_tensorboard=True
+    )
 
 model = PPO(**config)
 
@@ -80,6 +90,7 @@ print(model.policy)
 logger_callback = MarlLoggerCallback(gamma=config["gamma"])
 
 model.learn(10_000_000, callback=[logger_callback])
-model.save(f"exps_marl/token_env_marl_reach_avoid_policy_seed_{SEED}")
+model.save(f"exps_marl/token_env_marl_reach_avoid_policy_agents_{n_agents}_tokens_{n_tokens}_size_{size[0]}_{size[1]}_use_fixed_map_{use_fixed_map}")
 
-wandb.finish()
+if args.wandb:
+    wandb.finish()
