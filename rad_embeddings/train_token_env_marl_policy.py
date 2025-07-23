@@ -7,7 +7,8 @@ import gymnasium as gym
 from encoder import Encoder
 from dfa_gym import DFAWrapper, gym2zoo
 from stable_baselines3 import PPO
-from rad_embeddings.utils import MarlTokenEnvFeaturesExtractor, MarlLoggerCallback, LoggerCallback
+from stable_baselines3.common.env_util import make_vec_env
+from rad_embeddings.utils import TokenEnvFeaturesExtractor, MarlTokenEnvFeaturesExtractor, MarlLoggerCallback, LoggerCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.env_checker import check_env
 from dfa_samplers import ReachSampler, ReachAvoidSampler, RADSampler
@@ -23,39 +24,43 @@ parser.add_argument("--use_fixed_map", action="store_true", help="Use a fixed ma
 parser.add_argument("--wandb", action="store_true", help="Enable wandb logging")
 args = parser.parse_args()
 
-env_id = "DFABisimEnv-5-tokens"
+n_envs = 16
+n_agents = args.n_agents
+n_tokens = 10
+size = (7, 7)
+use_fixed_map = args.use_fixed_map
+
+env_id = f"DFABisimEnv-{n_tokens}-tokens"
 encoder_id = env_id + "-encoder"
 save_dir = "pretrained_encoders"
 # Encoder.train(env_id=env_id, save_dir=save_dir, alg="PPO", id=encoder_id)
 encoder = Encoder(load_file=f"{save_dir}/{encoder_id}")
 
-n_envs = 16
-env = token_env.TokenEnv(
-    n_agents=args.n_agents,
-    n_tokens=5,
-    size=(5, 5),
-    use_fixed_map=args.use_fixed_map
-)
-n_tokens = env.unwrapped.n_tokens
-n_agents = env.unwrapped.n_agents
-size = env.unwrapped.size
-use_fixed_map = env.unwrapped.use_fixed_map
+def create_env():
+    env = token_env.TokenEnv(
+        n_agents=n_agents,
+        n_tokens=n_tokens,
+        size=size,
+        use_fixed_map=use_fixed_map
+    )
+    reach_avoid_sampler = ReachAvoidSampler(n_tokens=n_tokens, max_size=6, p=None, prob_stutter=1.0)
+    return DFAWrapper(
+        env=env,
+        n_agents=n_agents,
+        sampler=reach_avoid_sampler,
+        r_agg_f=token_env.TokenEnv.r_agg_f,
+        label_f=token_env.TokenEnv.label_f
+    )
 
-reach_avoid_sampler = ReachAvoidSampler(n_tokens=n_tokens, max_size=6, p=None, prob_stutter=1.0)
-
-env = DFAWrapper(
-    env=env,
-    n_agents=n_agents,
-    sampler=reach_avoid_sampler,
-    r_agg_f=token_env.TokenEnv.r_agg_f,
-    label_f=token_env.TokenEnv.label_f
-)
-
-env = gym2zoo(env, black_death=True)
-# env = ss.black_death_v3(env) # AssertionError: observation sapces for black death must be Box spaces, is Dict('dfa_obs': Box(0, 9, (370,), int64), 'obs': Box(0, 1, (11, 7, 7), uint8))
-env = ss.pettingzoo_env_to_vec_env_v1(env)
-env = ss.concat_vec_envs_v1(env, n_envs, num_cpus=1, base_class="stable_baselines3")
-env = VecMonitor(env)
+if False:
+    env = make_vec_env(create_env, n_envs)
+else:
+    env = create_env()
+    env = gym2zoo(env, black_death=True)
+    # env = ss.black_death_v3(env) # AssertionError: observation sapces for black death must be Box spaces, is Dict('dfa_obs': Box(0, 9, (370,), int64), 'obs': Box(0, 1, (11, 7, 7), uint8))
+    env = ss.pettingzoo_env_to_vec_env_v1(env)
+    env = ss.concat_vec_envs_v1(env, n_envs, num_cpus=1, base_class="stable_baselines3")
+    env = VecMonitor(env)
 
 config = dict(
     policy = "MultiInputPolicy",
