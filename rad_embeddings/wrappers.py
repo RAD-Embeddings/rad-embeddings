@@ -1,23 +1,11 @@
 import jax
-import jax.numpy as jnp
 import chex
+import jax.numpy as jnp
 from flax import struct
 from functools import partial
-from typing import Optional, Tuple, Union, Any
-
+from typing import Tuple, Union
 from jaxmarl.wrappers.baselines import JaxMARLWrapper
 from jaxmarl.environments.multi_agent_env import MultiAgentEnv, State
-
-
-class GymnaxWrapper(object):
-    """Base class for Gymnax wrappers."""
-
-    def __init__(self, env):
-        self._env = env
-
-    # provide proxy access to regular attributes of wrapped object
-    def __getattr__(self, name):
-        return getattr(self._env, name)
 
 
 @struct.dataclass
@@ -31,14 +19,11 @@ class LogEnvState:
     returned_episode_lengths: int
     timestep: int
 
-class LogWrapper(JaxMARLWrapper):
-    """Log the episode returns and lengths.
-    NOTE for now for envs where agents terminate at the same time.
-    """
 
-    def __init__(self, env: MultiAgentEnv, config: dict, replace_info: bool = False):
+class LogWrapper(JaxMARLWrapper):
+
+    def __init__(self, env: MultiAgentEnv, config: dict):
         super().__init__(env)
-        self.replace_info = replace_info
         self.config = config
 
     @partial(jax.jit, static_argnums=(0,))
@@ -81,11 +66,11 @@ class LogWrapper(JaxMARLWrapper):
             returned_episode_lengths=state.returned_episode_lengths * (1 - ep_done) + new_episode_length * ep_done,
             timestep=state.timestep + 1
         )
-        if self.replace_info:
-            info = {}
+
         info["returned_episode_returns"] = state.returned_episode_returns
         info["returned_episode_disc_returns"] = state.returned_episode_disc_returns
         info["returned_episode_lengths"] = state.returned_episode_lengths
         info["returned_episode"] = jnp.full((self._env.num_agents,), ep_done)
         info["timestep"] = jnp.full((self._env.num_agents,), state.timestep)
         return obs, state, reward, done, info
+

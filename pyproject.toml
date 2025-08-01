@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "distrax>=0.1.5",
     "jax<=0.4.38",
-    "token-env",
+    "dfa-gym",
 ]
 
 [build-system]
@@ -16,5 +16,3 @@ build-backend = "hatchling.build"
 
 [tool.uv.sources]
 dfa-gym = { path = "../dfa-gym" }
-dfa-samplers = { path = "../dfa-samplers" }
-token-env = { path = "../token-env" }

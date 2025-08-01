@@ -1,17 +1,16 @@
 import jax
-import token_env
+import optax
+import distrax
+import numpy as np
 import jax.numpy as jnp
 import flax.linen as nn
-import numpy as np
-import optax
-from flax.linen.initializers import constant, orthogonal
-from typing import Sequence, NamedTuple, Any
-from flax.training.train_state import TrainState
-import distrax
-import gymnax
-from wrappers import LogWrapper
-
+from flax import struct
+from dfa_gym import TokenEnv
 from collections import deque
+from wrappers import LogWrapper
+from flax.training.train_state import TrainState
+from flax.linen.initializers import constant, orthogonal
+
 
 class TokenEnvFeaturesExtractor(nn.Module):
 
@@ -58,8 +57,8 @@ class ActorCritic(nn.Module):
         pi = distrax.Categorical(logits=logits)
         return pi, jnp.squeeze(value, axis=-1)
 
-
-class Transition(NamedTuple):
+@struct.dataclass
+class Transition():
     done: jnp.ndarray
     action: jnp.ndarray
     value: jnp.ndarray
@@ -77,9 +76,7 @@ def unbatchify(actions: jnp.ndarray, agents, n_envs):
     _actions = actions.reshape((len(agents), n_envs, -1)).squeeze()
     return {agent: _actions[i] for i, agent in enumerate(agents)}
 
-def make_train(config):
-    env = token_env.TokenEnvJax()
-    env = LogWrapper(env=env, config=config)
+def make_train(config, env):
     config["NUM_AGENTS"] = env.num_agents
     config["NUM_ACTORS"] = config["NUM_AGENTS"] * config["NUM_ENVS"]
     config["NUM_UPDATES"] = (
@@ -146,13 +143,13 @@ def make_train(config):
                 obsv, env_state, reward, done, info = jax.vmap(env.step)(rng_step, env_state, env_act)
                 info = jax.tree.map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
                 transition = Transition(
-                    batchify(done, env.agents),
-                    action,
-                    value,
-                    batchify(reward, env.agents),
-                    log_prob,
-                    obs_batch,
-                    info
+                    done=batchify(done, env.agents),
+                    action=action,
+                    value=value,
+                    reward=batchify(reward, env.agents),
+                    log_prob=log_prob,
+                    obs=obs_batch,
+                    info=info
                 )
                 runner_state = (train_state, env_state, obsv, rng)
                 return runner_state, transition
@@ -321,10 +318,11 @@ if __name__ == "__main__":
         "ENT_COEF": 0.01,
         "VF_COEF": 0.5,
         "MAX_GRAD_NORM": 0.5,
-        "ENV_NAME": "CartPole-v1",
         "ANNEAL_LR": True,
         "DEBUG": True,
     }
+    env = TokenEnv()
+    env = LogWrapper(env=env, config=config)
     rng = jax.random.PRNGKey(30)
-    train_jit = jax.jit(make_train(config))
+    train_jit = jax.jit(make_train(config, env))
     out = train_jit(rng)
