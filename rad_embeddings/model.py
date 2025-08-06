@@ -28,6 +28,7 @@ class GATv2Conv(nn.Module):
         logits = a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
         attn = jraph.segment_softmax(logits, tgt, num_segments=N)
         msgs = attn * h_s
+        # msgs = attn * (h_s + h_e) # Consider this!
         out = jraph.segment_sum(msgs, tgt, num_segments=N)
 
         return out
