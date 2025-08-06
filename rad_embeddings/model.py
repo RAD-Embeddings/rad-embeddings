@@ -26,10 +26,9 @@ class GATv2Conv(nn.Module):
         h_e = W_e(edge_features).reshape(-1, self.num_heads, head_dim)
 
         logits = a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
-        attn = jraph.segment_softmax(logits, tgt, num_segments=N)
-        msgs = attn * h_s
-        # msgs = attn * (h_s + h_e) # Consider this!
-        out = jraph.segment_sum(msgs, tgt, num_segments=N)
+        attn = jraph.segment_softmax(logits, src, num_segments=N)
+        msgs = attn * (h_t + h_e)
+        out = jraph.segment_sum(msgs, src, num_segments=N)
 
         return out
 
@@ -59,7 +58,7 @@ class Model(nn.Module):
         h0 = linear_in(node_features.astype(jnp.float32))  # [N, hidden_dim]
         h = h0
 
-        for _ in range(n_reach_states):
+        for _ in range(10):
             h = conv(jnp.concatenate([h, h0], axis=-1), edge_features, edge_index).sum(axis=1)
             h = activation(h)
 
