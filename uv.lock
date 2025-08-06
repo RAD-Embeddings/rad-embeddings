@@ -296,15 +296,32 @@ wheels = [
 
 [[package]]
 name = "dfa-samplers"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.1.8"
+source = { directory = "../dfa-samplers" }
 dependencies = [
     { name = "dfa" },
     { name = "dfa-mutate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/d5/08d8f27e74df1bf20bad1c1b8d4ad98b13c9e5a91cadba87fd521fdc0771/dfa_samplers-0.1.0.tar.gz", hash = "sha256:5fbaf8e4fbef51f34e9eece08092933a7e4f4d483959ce73596f25a456d92a8e", size = 9655 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/97/d8/4f6f6bd9e065b6c32eaf778d47fda3e0b60bf9fc608ceb20032d968a6b91/dfa_samplers-0.1.0-py3-none-any.whl", hash = "sha256:8662d4e30f3e14ef7b2c47b24d564c2ba4d1cd957d617106ff0769aebcae5e64", size = 3342 },
+
+[package.metadata]
+requires-dist = [
+    { name = "dfa", specifier = ">=4.7.1" },
+    { name = "dfa-mutate", specifier = ">=0.1.3" },
+]
+
+[[package]]
+name = "dfax"
+version = "0.1.0"
+source = { virtual = "../dfax" }
+dependencies = [
+    { name = "dfa" },
+    { name = "dfa-samplers" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dfa", specifier = ">=4.7.1" },
+    { name = "dfa-samplers", directory = "../dfa-samplers" },
 ]
 
 [[package]]
@@ -695,6 +712,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz", hash = "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d", size = 245115 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67", size = 134899 },
+]
+
+[[package]]
+name = "jraph"
+version = "0.0.6.dev0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jax" },
+    { name = "jaxlib" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8c/77/68d90dbc44c0b51aaa774b47b51f8568062452adf91e67b5e50f6711c981/jraph-0.0.6.dev0.tar.gz", hash = "sha256:c3ac3a0b224b344eb6d367e8bc312d95ea41bf825d01ea31b80dd8c22c0dd8b8", size = 68407 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/e2/f799edeb39a154560b52134cdb3a3359e2de965c76886949966e46d5c42b/jraph-0.0.6.dev0-py3-none-any.whl", hash = "sha256:350fe37bf717f934f1f84fd3370a480b3178bfcb61dfa217c738971308c57625", size = 90564 },
 ]
 
 [[package]]
@@ -1290,15 +1321,19 @@ version = "0.1.3"
 source = { editable = "." }
 dependencies = [
     { name = "dfa-gym" },
+    { name = "dfax" },
     { name = "distrax" },
     { name = "jax" },
+    { name = "jraph" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "dfa-gym", directory = "../dfa-gym" },
+    { name = "dfax", virtual = "../dfax" },
     { name = "distrax", specifier = ">=0.1.5" },
     { name = "jax", specifier = "<=0.4.38" },
+    { name = "jraph", specifier = ">=0.0.6.dev0" },
 ]
 
 [[package]]

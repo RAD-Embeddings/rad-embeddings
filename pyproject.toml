@@ -8,6 +8,8 @@ dependencies = [
     "distrax>=0.1.5",
     "jax<=0.4.38",
     "dfa-gym",
+    "jraph>=0.0.6.dev0",
+    "dfax",
 ]
 
 [build-system]
@@ -16,3 +18,4 @@ build-backend = "hatchling.build"
 
 [tool.uv.sources]
 dfa-gym = { path = "../dfa-gym" }
+dfax = { path = "../dfax" }
