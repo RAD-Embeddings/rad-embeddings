@@ -1,59 +1,107 @@
 import jax
 import time
+import jraph
 import optax
 import distrax
 import numpy as np
 import jax.numpy as jnp
 import flax.linen as nn
 from flax import struct
-from dfa_gym import TokenEnv
+from dfa_gym import DFABisimEnv
 from collections import deque
 from wrappers import LogWrapper
 from flax.training.train_state import TrainState
 from flax.linen.initializers import constant, orthogonal
 
-
-class TokenEnvFeaturesExtractor(nn.Module):
-
-    @nn.compact
-    def __call__(self, x):
-        x = nn.Conv(16, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
-        x = nn.relu(x)
-        x = nn.Conv(32, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
-        x = nn.relu(x)
-        x = nn.Conv(64, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
-        x = nn.relu(x)
-        return x.reshape((x.shape[0], -1)) # Flatten (start_dim=B)
+from dfax import dfa2dfax, dfax2dfa, batch2graph
 
 
-class MLP(nn.Module):
-    dims: list[int]
+class GATv2Conv(nn.Module):
+    out_dim: int
+    num_heads: int
 
     @nn.compact
-    def __call__(self, x):
-        for dim in self.dims:
-            x = nn.Dense(dim, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))(x)
-            x = nn.relu(x)
-        return x
+    def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
+        N = node_features.shape[0]
+        head_dim = self.out_dim
+        W_s = nn.Dense(self.num_heads * head_dim, use_bias=False, name='W_s')
+        W_t = nn.Dense(self.num_heads * head_dim, use_bias=False, name='W_t')
+        W_e = nn.Dense(self.num_heads * head_dim, use_bias=False, name='W_e')
+        a = nn.Dense(1, use_bias=False, name='a')
+
+        src, tgt = edge_index
+        x_s = node_features[src]
+        x_t = node_features[tgt]
+
+        h_s = W_s(x_s).reshape(-1, self.num_heads, head_dim)
+        h_t = W_t(x_t).reshape(-1, self.num_heads, head_dim)
+        h_e = W_e(edge_features).reshape(-1, self.num_heads, head_dim)
+
+        logits = a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
+        attn = jraph.segment_softmax(logits, src, num_segments=N)
+        msgs = attn * (h_t + h_e)
+        out = jraph.segment_sum(msgs, src, num_segments=N)
+
+        return out
+
+
+class Model(nn.Module):
+    input_dim: int
+    output_dim: int
+    hidden_dim: int = 64
+    num_layers: int = 8
+    n_heads: int = 4
+
+    @nn.compact
+    def __call__(
+        self,
+        graph
+    ) -> jnp.ndarray:
+
+        linear_h = nn.Dense(self.hidden_dim, name='linear_h')
+        linear_e = nn.Dense(self.hidden_dim, name='linear_e')
+        conv = GATv2Conv(out_dim=self.hidden_dim, num_heads=self.n_heads)
+        activation = jnp.tanh
+        g_embed = nn.Dense(self.output_dim, name='g_embed')
+
+        h0 = linear_h(graph["node_features"].astype(jnp.float32))  # [N, hidden_dim]
+        e = linear_e(graph["edge_features"].astype(jnp.float32))  # [N, hidden_dim]
+        h = h0
+
+        for _ in range(10): # TODO: use flax.linen.while_loop instead!
+            h = conv(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1)
+            h = activation(h)
+
+        return g_embed(h[graph["current_state"]])
 
 
 class ActorCritic(nn.Module):
     action_dim: int
 
     @nn.compact
-    def __call__(self, obs):
-        if obs.ndim == 3: # (C, H, W)
-            obs = obs[None, ...] # -> (1, C, H, W)
-        elif obs.ndim != 4:
-            raise ValueError(f"Expected (C, H, W) or (B, C, H, W), got {obs.shape}")
-        obs = jnp.transpose(obs, (0, 2, 3, 1)) # -> (B, H, W, C)
-        feat = TokenEnvFeaturesExtractor()(obs)
+    def __call__(self, batch):
+        # B = batch["graph_l"]["current_state"].shape[0]  # batch size
 
-        policy_hidden = MLP([64, 64, 64])(feat)
-        value_hidden = MLP([64, 64])(feat)
+        # # Dummy shapes
+        # logits = jnp.zeros((B, 10))
+        # value = jnp.zeros((B,))
 
-        logits = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))(policy_hidden)
-        value = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(value_hidden)
+        # pi = distrax.Categorical(logits=logits)
+        # return pi, value
+
+        model = Model(input_dim=3, output_dim=32)
+
+        graph_l = batch2graph(batch["graph_l"])
+        graph_r = batch2graph(batch["graph_r"])
+
+        feat_l = model(graph_l)
+        feat_r = model(graph_r)
+
+        feat = jnp.concatenate([feat_l, feat_r], axis=-1)  # shape (B, feat_dim)
+
+        # Policy logits and value head
+        logits = nn.Dense(10, kernel_init=orthogonal(0.01), bias_init=constant(0.0))(feat)
+        value = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(feat)
 
         pi = distrax.Categorical(logits=logits)
         return pi, jnp.squeeze(value, axis=-1)
@@ -69,13 +117,10 @@ class Transition():
     info: jnp.ndarray
 
 def batchify(obss: dict, agents):
-    shape_without_batch = obss[agents[0]].shape[1:]
-    obss_batch = jnp.stack([obss[agent] for agent in agents])
-    return obss_batch.reshape((-1, *shape_without_batch))
+    return obss[agents[0]]
 
 def unbatchify(actions: jnp.ndarray, agents, n_envs):
-    _actions = actions.reshape((len(agents), n_envs, -1)).squeeze()
-    return {agent: _actions[i] for i, agent in enumerate(agents)}
+    return {agents[0]: actions}
 
 def make_train(config, env):
     config["NUM_AGENTS"] = env.num_agents
@@ -99,7 +144,8 @@ def make_train(config, env):
         # INIT NETWORK
         network = ActorCritic(env.action_space(env.agents[0]).n)
         rng, _rng = jax.random.split(rng)
-        init_x = jnp.zeros(env.observation_space(env.agents[0]).shape)
+        # init_x = jnp.zeros(env.observation_space(env.agents[0]).shape)
+        init_x = env.observation_space(env.agents[0]).sample(_rng)
         network_params = network.init(_rng, init_x)
         if config["ANNEAL_LR"]:
             tx = optax.chain(
@@ -141,6 +187,11 @@ def make_train(config, env):
                 # STEP ENV
                 rng, _rng = jax.random.split(rng)
                 rng_step = jax.random.split(_rng, config["NUM_ENVS"])
+                # print(action)
+                # print(rng_step)
+                # print(env_state)
+                # print(env_act)
+                # input()
                 obsv, env_state, reward, done, info = jax.vmap(env.step)(rng_step, env_state, env_act)
                 info = jax.tree.map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
                 transition = Transition(
@@ -306,28 +357,45 @@ def make_train(config, env):
 
 
 if __name__ == "__main__":
+    # config = {
+    #     "LR": 2.5e-4,
+    #     "NUM_ENVS": 4,
+    #     "NUM_STEPS": 128,
+    #     "TOTAL_TIMESTEPS": 5e3,
+    #     "UPDATE_EPOCHS": 4,
+    #     "NUM_MINIBATCHES": 4,
+    #     "GAMMA": 0.99,
+    #     "GAE_LAMBDA": 0.95,
+    #     "CLIP_EPS": 0.2,
+    #     "ENT_COEF": 0.01,
+    #     "VF_COEF": 0.5,
+    #     "MAX_GRAD_NORM": 0.5,
+    #     "ANNEAL_LR": True,
+    #     "DEBUG": False,
+    # }
     config = {
-        "LR": 2.5e-4,
-        "NUM_ENVS": 4,
-        "NUM_STEPS": 128,
-        "TOTAL_TIMESTEPS": 5e3,
-        "UPDATE_EPOCHS": 4,
+        "LR": 1e-3,
+        "NUM_ENVS": 8,
+        "NUM_STEPS": 512,
+        "TOTAL_TIMESTEPS": 1e6,
+        "UPDATE_EPOCHS": 2,
         "NUM_MINIBATCHES": 4,
-        "GAMMA": 0.99,
-        "GAE_LAMBDA": 0.95,
-        "CLIP_EPS": 0.2,
-        "ENT_COEF": 0.01,
-        "VF_COEF": 0.5,
+        "GAMMA": 0.9,
+        "GAE_LAMBDA": 0.0,
+        "CLIP_EPS": 0.1,
+        "ENT_COEF": 0.00,
+        "VF_COEF": 1.0,
         "MAX_GRAD_NORM": 0.5,
-        "ANNEAL_LR": True,
-        "DEBUG": False,
+        "ANNEAL_LR": False,
+        "DEBUG": True,
     }
-    env = TokenEnv()
+    env = DFABisimEnv()
     env = LogWrapper(env=env, config=config)
     rng = jax.random.PRNGKey(30)
     train_jit = jax.jit(make_train(config, env))
     print("Compiled")
-    start = time.time()
+    # train_jit = make_train(config, env)
+    # start = time.time()
     out = train_jit(rng)
-    end = time.time()
-    print(end - start)
+    # end = time.time()
+    # print(end - start)
