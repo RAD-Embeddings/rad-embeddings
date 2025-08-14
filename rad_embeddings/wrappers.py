@@ -4,8 +4,7 @@ import jax.numpy as jnp
 from flax import struct
 from functools import partial
 from typing import Tuple, Union
-from jaxmarl.wrappers.baselines import JaxMARLWrapper
-from jaxmarl.environments.multi_agent_env import MultiAgentEnv, State
+from dfa_gym.env import MultiAgentEnv, State
 
 
 @struct.dataclass
@@ -18,6 +17,22 @@ class LogEnvState:
     returned_episode_disc_returns: float
     returned_episode_lengths: int
     timestep: int
+
+class JaxMARLWrapper(object):
+    """Base class for all jaxmarl wrappers."""
+
+    def __init__(self, env: MultiAgentEnv):
+        self._env = env
+
+    def __getattr__(self, name: str):
+        return getattr(self._env, name)
+
+    # def _batchify(self, x: dict):
+    #     x = jnp.stack([x[a] for a in self._env.agents])
+    #     return x.reshape((self._env.num_agents, -1))
+
+    def _batchify_floats(self, x: dict):
+        return jnp.stack([x[a] for a in self._env.agents])
 
 
 class LogWrapper(JaxMARLWrapper):
