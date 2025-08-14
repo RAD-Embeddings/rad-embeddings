@@ -61,16 +61,19 @@ class Model(nn.Module):
         linear_h = nn.Dense(self.hidden_dim, name='linear_h')
         linear_e = nn.Dense(self.hidden_dim, name='linear_e')
         conv = GATv2Conv(out_dim=self.hidden_dim, num_heads=self.n_heads)
-        activation = jnp.tanh
+        activation = nn.tanh
         g_embed = nn.Dense(self.output_dim, name='g_embed')
 
         h0 = linear_h(graph["node_features"].astype(jnp.float32))  # [N, hidden_dim]
         e = linear_e(graph["edge_features"].astype(jnp.float32))  # [N, hidden_dim]
         h = h0
 
+        mask = graph["n_states"]
+
         for _ in range(10): # TODO: use flax.linen.while_loop instead!
-            h = conv(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1)
-            h = activation(h)
+            _h = activation(conv(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
+            h = jnp.where((mask > 0)[:, None], _h, h)
+            mask -= 1
 
         return g_embed(h[graph["current_state"]])
 
@@ -94,12 +97,22 @@ class ActorCritic(nn.Module):
         graph_l = batch2graph(batch["graph_l"])
         graph_r = batch2graph(batch["graph_r"])
 
-        feat_l = model(graph_l)
-        feat_r = model(graph_r)
+        batch = {
+            "node_features": jnp.stack(jnp.array([graph_l["node_features"], graph_r["node_features"]])),
+            "edge_features": jnp.stack(jnp.array([graph_l["edge_features"], graph_r["edge_features"]])),
+            "edge_index": jnp.stack(jnp.array([graph_l["edge_index"], graph_r["edge_index"]])),
+            "current_state": jnp.concatenate(jnp.array([graph_l["current_state"], graph_r["current_state"]])),
+            "n_states": jnp.stack(jnp.array([graph_l["n_states"], graph_r["n_states"]]))
+        }
+
+        graph = batch2graph(batch)
+
+        feat = model(graph)
+
+        feat_l, feat_r = jnp.array_split(feat, 2)
 
         feat = jnp.concatenate([feat_l, feat_r], axis=-1)  # shape (B, feat_dim)
 
-        # Policy logits and value head
         logits = nn.Dense(10, kernel_init=orthogonal(0.01), bias_init=constant(0.0))(feat)
         value = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(feat)
 
