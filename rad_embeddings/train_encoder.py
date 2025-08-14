@@ -344,16 +344,25 @@ def make_train(config, env):
             if config.get("DEBUG"):
                 return_buffer = deque(maxlen=100) # this is fine on the debug side
                 disc_return_buffer = deque(maxlen=100) # this is fine on the debug side
+                start_time = time.time()
+
                 def callback(info):
                     return_values = info["returned_episode_returns"][info["returned_episode"]]
                     return_buffer.extend(return_values)
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
                     disc_return_buffer.extend(disc_return_values)
+
                     timesteps = info["timestep"][-1, :]
                     global_step = jnp.sum(timesteps) / config["NUM_AGENTS"]
+
                     mean_return_value = float(np.mean(return_buffer))
                     mean_disc_return_value = float(np.mean(disc_return_buffer))
-                    jax.debug.print(f"global step={global_step}, mean return={mean_return_value}, mean disc return={mean_disc_return_value}", ordered=True)
+
+                    elapsed = time.time() - start_time
+                    fps = global_step / elapsed if elapsed > 0 else 0.0
+
+                    jax.debug.print("global step={global_step}, mean return={mean_return_value}, mean disc return={mean_disc_return_value}, fps={fps}", global_step=np.sum(timesteps), mean_return_value=mean_return_value, mean_disc_return_value=mean_disc_return_value, fps=fps, ordered=True)
+
                 jax.debug.callback(callback, metric)
 
             runner_state = (train_state, env_state, last_obs, rng)
