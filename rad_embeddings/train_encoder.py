@@ -113,6 +113,7 @@ def _batchify(obss: dict, agents):
 def _unbatchify(actions: jnp.ndarray, agents, n_envs):
     return {agents[0]: actions}
 
+
 if __name__ == "__main__":
     config = {
         "LR": 1e-3,
