@@ -6,57 +6,9 @@ import numpy as np
 import jax.numpy as jnp
 import flax.linen as nn
 from flax import struct
-from dfa_gym import TokenEnv
 from collections import deque
-from wrappers import LogWrapper
 from flax.training.train_state import TrainState
-from flax.linen.initializers import constant, orthogonal
 
-
-class TokenEnvFeaturesExtractor(nn.Module):
-
-    @nn.compact
-    def __call__(self, x):
-        x = nn.Conv(16, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
-        x = nn.relu(x)
-        x = nn.Conv(32, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
-        x = nn.relu(x)
-        x = nn.Conv(64, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
-        x = nn.relu(x)
-        return x.reshape((x.shape[0], -1)) # Flatten (start_dim=B)
-
-
-class MLP(nn.Module):
-    dims: list[int]
-
-    @nn.compact
-    def __call__(self, x):
-        for dim in self.dims:
-            x = nn.Dense(dim, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))(x)
-            x = nn.relu(x)
-        return x
-
-
-class ActorCritic(nn.Module):
-    action_dim: int
-
-    @nn.compact
-    def __call__(self, obs):
-        if obs.ndim == 3: # (C, H, W)
-            obs = obs[None, ...] # -> (1, C, H, W)
-        elif obs.ndim != 4:
-            raise ValueError(f"Expected (C, H, W) or (B, C, H, W), got {obs.shape}")
-        obs = jnp.transpose(obs, (0, 2, 3, 1)) # -> (B, H, W, C)
-        feat = TokenEnvFeaturesExtractor()(obs)
-
-        policy_hidden = MLP([64, 64, 64])(feat)
-        value_hidden = MLP([64, 64])(feat)
-
-        logits = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))(policy_hidden)
-        value = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(value_hidden)
-
-        pi = distrax.Categorical(logits=logits)
-        return pi, jnp.squeeze(value, axis=-1)
 
 @struct.dataclass
 class Transition():
@@ -68,16 +20,7 @@ class Transition():
     obs: jnp.ndarray
     info: jnp.ndarray
 
-def batchify(obss: dict, agents):
-    shape_without_batch = obss[agents[0]].shape[1:]
-    obss_batch = jnp.stack([obss[agent] for agent in agents])
-    return obss_batch.reshape((-1, *shape_without_batch))
-
-def unbatchify(actions: jnp.ndarray, agents, n_envs):
-    _actions = actions.reshape((len(agents), n_envs, -1)).squeeze()
-    return {agent: _actions[i] for i, agent in enumerate(agents)}
-
-def make_train(config, env):
+def make_train(config, env, network, batchify, unbatchify):
     config["NUM_AGENTS"] = env.num_agents
     config["NUM_ACTORS"] = config["NUM_AGENTS"] * config["NUM_ENVS"]
     config["NUM_UPDATES"] = (
@@ -97,9 +40,9 @@ def make_train(config, env):
 
     def train(rng):
         # INIT NETWORK
-        network = ActorCritic(env.action_space(env.agents[0]).n)
         rng, _rng = jax.random.split(rng)
-        init_x = jnp.zeros(env.observation_space(env.agents[0]).shape)
+        # init_x = jnp.zeros(env.observation_space(env.agents[0]).shape)
+        init_x = env.observation_space(env.agents[0]).sample(_rng)
         network_params = network.init(_rng, init_x)
         if config["ANNEAL_LR"]:
             tx = optax.chain(
@@ -280,16 +223,29 @@ def make_train(config, env):
             if config.get("DEBUG"):
                 return_buffer = deque(maxlen=100) # this is fine on the debug side
                 disc_return_buffer = deque(maxlen=100) # this is fine on the debug side
+                start_time = time.time()
+                steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
+
                 def callback(info):
+                    nonlocal start_time
                     return_values = info["returned_episode_returns"][info["returned_episode"]]
                     return_buffer.extend(return_values)
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
                     disc_return_buffer.extend(disc_return_values)
+
                     timesteps = info["timestep"][-1, :]
                     global_step = jnp.sum(timesteps) / config["NUM_AGENTS"]
+
                     mean_return_value = float(np.mean(return_buffer))
                     mean_disc_return_value = float(np.mean(disc_return_buffer))
-                    jax.debug.print(f"global step={global_step}, mean return={mean_return_value}, mean disc return={mean_disc_return_value}", ordered=True)
+
+                    elapsed = time.time() - start_time
+                    fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
+
+                    jax.debug.print("global step={global_step}, mean return={mean_return_value}, mean disc return={mean_disc_return_value}, fps={fps}", global_step=np.sum(timesteps), mean_return_value=mean_return_value, mean_disc_return_value=mean_disc_return_value, fps=fps, ordered=True)
+
+                    start_time = time.time()
+
                 jax.debug.callback(callback, metric)
 
             runner_state = (train_state, env_state, last_obs, rng)
@@ -304,30 +260,3 @@ def make_train(config, env):
 
     return train
 
-
-if __name__ == "__main__":
-    config = {
-        "LR": 2.5e-4,
-        "NUM_ENVS": 4,
-        "NUM_STEPS": 128,
-        "TOTAL_TIMESTEPS": 5e3,
-        "UPDATE_EPOCHS": 4,
-        "NUM_MINIBATCHES": 4,
-        "GAMMA": 0.99,
-        "GAE_LAMBDA": 0.95,
-        "CLIP_EPS": 0.2,
-        "ENT_COEF": 0.01,
-        "VF_COEF": 0.5,
-        "MAX_GRAD_NORM": 0.5,
-        "ANNEAL_LR": True,
-        "DEBUG": False,
-    }
-    env = TokenEnv()
-    env = LogWrapper(env=env, config=config)
-    rng = jax.random.PRNGKey(30)
-    train_jit = jax.jit(make_train(config, env))
-    print("Compiled")
-    start = time.time()
-    out = train_jit(rng)
-    end = time.time()
-    print(end - start)
