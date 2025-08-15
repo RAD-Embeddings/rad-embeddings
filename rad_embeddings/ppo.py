@@ -222,8 +222,8 @@ def make_train(config, env, network, batchify, unbatchify):
             # Debugging mode
             if config.get("DEBUG"):
                 steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
-                return_buffer = deque(maxlen=steps_per_update*10)
-                disc_return_buffer = deque(maxlen=steps_per_update*10)
+                return_buffer = deque(maxlen=steps_per_update)
+                disc_return_buffer = deque(maxlen=steps_per_update)
                 start_time = time.time()
 
                 def callback(info):
