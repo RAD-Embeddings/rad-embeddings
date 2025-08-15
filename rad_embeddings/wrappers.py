@@ -18,28 +18,17 @@ class LogEnvState:
     returned_episode_lengths: int
     timestep: int
 
-class JaxMARLWrapper(object):
-    """Base class for all jaxmarl wrappers."""
+class LogWrapper(object):
 
-    def __init__(self, env: MultiAgentEnv):
+    def __init__(self, env: MultiAgentEnv, config: dict):
         self._env = env
+        self.config = config
 
     def __getattr__(self, name: str):
         return getattr(self._env, name)
 
-    # def _batchify(self, x: dict):
-    #     x = jnp.stack([x[a] for a in self._env.agents])
-    #     return x.reshape((self._env.num_agents, -1))
-
     def _batchify_floats(self, x: dict):
         return jnp.stack([x[a] for a in self._env.agents])
-
-
-class LogWrapper(JaxMARLWrapper):
-
-    def __init__(self, env: MultiAgentEnv, config: dict):
-        super().__init__(env)
-        self.config = config
 
     @partial(jax.jit, static_argnums=(0,))
     def reset(self, key: chex.PRNGKey) -> Tuple[chex.Array, State]:
@@ -69,7 +58,7 @@ class LogWrapper(JaxMARLWrapper):
         ep_done = done["__all__"]
         _rew = self._batchify_floats(reward)
         new_episode_return = state.episode_returns + _rew
-        new_episode_disc_return = state.episode_disc_returns + _rew * self.config["GAMMA"]**(env_state.time - 1)
+        new_episode_disc_return = state.episode_disc_returns + _rew * self.config["GAMMA"]**env_state.time
         new_episode_length = state.episode_lengths + 1
         state = LogEnvState(
             env_state=env_state,

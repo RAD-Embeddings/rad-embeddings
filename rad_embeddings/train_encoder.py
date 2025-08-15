@@ -70,7 +70,8 @@ class Model(nn.Module):
 
         mask = graph["n_states"]
 
-        for _ in range(10): # TODO: use flax.linen.while_loop instead!
+        for _ in range(10):
+            # h = activation(conv(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
             _h = activation(conv(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
             h = jnp.where((mask > 0)[:, None], _h, h)
             mask -= 1
@@ -83,15 +84,6 @@ class ActorCritic(nn.Module):
 
     @nn.compact
     def __call__(self, batch):
-        # B = batch["graph_l"]["current_state"].shape[0]  # batch size
-
-        # # Dummy shapes
-        # logits = jnp.zeros((B, 10))
-        # value = jnp.zeros((B,))
-
-        # pi = distrax.Categorical(logits=logits)
-        # return pi, value
-
         model = Model(input_dim=3, output_dim=32)
 
         graph_l = batch2graph(batch["graph_l"])
@@ -200,11 +192,6 @@ def make_train(config, env):
                 # STEP ENV
                 rng, _rng = jax.random.split(rng)
                 rng_step = jax.random.split(_rng, config["NUM_ENVS"])
-                # print(action)
-                # print(rng_step)
-                # print(env_state)
-                # print(env_act)
-                # input()
                 obsv, env_state, reward, done, info = jax.vmap(env.step)(rng_step, env_state, env_act)
                 info = jax.tree.map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
                 transition = Transition(
@@ -345,8 +332,10 @@ def make_train(config, env):
                 return_buffer = deque(maxlen=100) # this is fine on the debug side
                 disc_return_buffer = deque(maxlen=100) # this is fine on the debug side
                 start_time = time.time()
+                steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
 
                 def callback(info):
+                    nonlocal start_time
                     return_values = info["returned_episode_returns"][info["returned_episode"]]
                     return_buffer.extend(return_values)
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
@@ -359,9 +348,11 @@ def make_train(config, env):
                     mean_disc_return_value = float(np.mean(disc_return_buffer))
 
                     elapsed = time.time() - start_time
-                    fps = global_step / elapsed if elapsed > 0 else 0.0
+                    fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
 
                     jax.debug.print("global step={global_step}, mean return={mean_return_value}, mean disc return={mean_disc_return_value}, fps={fps}", global_step=np.sum(timesteps), mean_return_value=mean_return_value, mean_disc_return_value=mean_disc_return_value, fps=fps, ordered=True)
+
+                    start_time = time.time()
 
                 jax.debug.callback(callback, metric)
 
