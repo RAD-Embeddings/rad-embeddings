@@ -90,3 +90,4 @@ if __name__ == "__main__":
     network = ActorCritic(env.action_space(env.agents[0]).n)
     train_jit = jax.jit(make_train(config, env, network, _batchify, _unbatchify))
     out = train_jit(rng)
+
