@@ -41,8 +41,8 @@ def make_train(config, env, network, batchify, unbatchify):
     def train(rng):
         # INIT NETWORK
         rng, _rng = jax.random.split(rng)
-        # init_x = jnp.zeros(env.observation_space(env.agents[0]).shape)
         init_x = env.observation_space(env.agents[0]).sample(_rng)
+        rng, _rng = jax.random.split(rng)
         network_params = network.init(_rng, init_x)
         if config["ANNEAL_LR"]:
             tx = optax.chain(
