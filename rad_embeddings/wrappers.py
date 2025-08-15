@@ -20,28 +20,21 @@ class LogEnvState:
 
 class LogWrapper(object):
 
-    def __init__(self, env, config: dict):
+    def __init__(self, env: MultiAgentEnv, config: dict):
         self._env = env
         self.config = config
-        self.n_agents = self._env.num_agents if isinstance(self._env, MultiAgentEnv) else 1
-
-    def __getattr__(self, name: str):
-        return getattr(self._env, name)
-
-    def _batchify_floats(self, x: dict):
-        return jnp.stack([x[a] for a in self._env.agents])
 
     @partial(jax.jit, static_argnums=(0,))
     def reset(self, key: chex.PRNGKey) -> Tuple[chex.Array, State]:
         obs, env_state = self._env.reset(key)
         state = LogEnvState(
             env_state=env_state,
-            episode_returns=jnp.zeros((self.n_agents,)),
-            episode_disc_returns=jnp.zeros((self.n_agents,)),
-            episode_lengths=jnp.zeros((self.n_agents,)),
-            returned_episode_returns=jnp.zeros((self.n_agents,)),
-            returned_episode_disc_returns=jnp.zeros((self.n_agents,)),
-            returned_episode_lengths=jnp.zeros((self.n_agents,)),
+            episode_returns=jnp.zeros((self._env.num_agents,)),
+            episode_disc_returns=jnp.zeros((self._env.num_agents,)),
+            episode_lengths=jnp.zeros((self._env.num_agents,)),
+            returned_episode_returns=jnp.zeros((self._env.num_agents,)),
+            returned_episode_disc_returns=jnp.zeros((self._env.num_agents,)),
+            returned_episode_lengths=jnp.zeros((self._env.num_agents,)),
             timestep=0
         )
         return obs, state
@@ -56,10 +49,10 @@ class LogWrapper(object):
         obs, env_state, reward, done, info = self._env.step(
             key, state.env_state, action
         )
-        ep_done = done["__all__"] if isinstance(self._env, MultiAgentEnv) else done
-        _rew = self._batchify_floats(reward) if isinstance(self._env, MultiAgentEnv) else reward
+        ep_done = done["__all__"]
+        _rew = self._batchify_floats(reward)
         new_episode_return = state.episode_returns + _rew
-        new_episode_disc_return = state.episode_disc_returns + _rew * self.config["GAMMA"]**env_state.time
+        new_episode_disc_return = state.episode_disc_returns + _rew * self.config["GAMMA"]**state.episode_lengths
         new_episode_length = state.episode_lengths + 1
         state = LogEnvState(
             env_state=env_state,
@@ -75,7 +68,13 @@ class LogWrapper(object):
         info["returned_episode_returns"] = state.returned_episode_returns
         info["returned_episode_disc_returns"] = state.returned_episode_disc_returns
         info["returned_episode_lengths"] = state.returned_episode_lengths
-        info["returned_episode"] = jnp.full((self.n_agents,), ep_done)
-        info["timestep"] = jnp.full((self.n_agents,), state.timestep)
+        info["returned_episode"] = jnp.full((self._env.num_agents,), ep_done)
+        info["timestep"] = jnp.full((self._env.num_agents,), state.timestep)
         return obs, state, reward, done, info
+
+    def __getattr__(self, name: str):
+        return getattr(self._env, name)
+
+    def _batchify_floats(self, x: dict):
+        return jnp.stack([x[a] for a in self._env.agents])
 

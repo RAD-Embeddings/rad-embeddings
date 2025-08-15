@@ -221,13 +221,14 @@ def make_train(config, env, network, batchify, unbatchify):
             
             # Debugging mode
             if config.get("DEBUG"):
-                return_buffer = deque(maxlen=100) # this is fine on the debug side
-                disc_return_buffer = deque(maxlen=100) # this is fine on the debug side
-                start_time = time.time()
                 steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
+                return_buffer = deque(maxlen=steps_per_update*10)
+                disc_return_buffer = deque(maxlen=steps_per_update*10)
+                start_time = time.time()
 
                 def callback(info):
                     nonlocal start_time
+
                     return_values = info["returned_episode_returns"][info["returned_episode"]]
                     return_buffer.extend(return_values)
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
@@ -242,7 +243,12 @@ def make_train(config, env, network, batchify, unbatchify):
                     elapsed = time.time() - start_time
                     fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
 
-                    jax.debug.print("global step={global_step}, mean return={mean_return_value}, mean disc return={mean_disc_return_value}, fps={fps}", global_step=np.sum(timesteps), mean_return_value=mean_return_value, mean_disc_return_value=mean_disc_return_value, fps=fps, ordered=True)
+                    jax.debug.print("global step={global_step}, mean return={mean_return_value}, mean disc return={mean_disc_return_value}, fps={fps}",
+                        global_step=global_step,
+                        mean_return_value=mean_return_value,
+                        mean_disc_return_value=mean_disc_return_value,
+                        fps=fps,
+                        ordered=True)
 
                     start_time = time.time()
 

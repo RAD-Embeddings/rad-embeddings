@@ -131,6 +131,8 @@ if __name__ == "__main__":
         "ANNEAL_LR": False,
         "DEBUG": True,
     }
+    # from dfax.samplers import RADSampler
+    # env = DFABisimEnv(sampler=RADSampler(p=None))
     env = DFABisimEnv()
     env = LogWrapper(env=env, config=config)
     rng = jax.random.PRNGKey(30)
