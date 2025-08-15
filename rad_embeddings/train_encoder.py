@@ -41,10 +41,9 @@ class GATv2Conv(nn.Module):
 
 
 class Model(nn.Module):
-    input_dim: int
     output_dim: int
     hidden_dim: int = 64
-    num_layers: int = 8
+    num_layers: int = 10
     n_heads: int = 4
 
     def setup(self):
@@ -64,7 +63,7 @@ class Model(nn.Module):
 
         mask = graph["n_states"]
 
-        for _ in range(10):
+        for _ in range(self.num_layers):
             # h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
             _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
             h = jnp.where((mask > 0)[:, None], _h, h)
@@ -75,9 +74,11 @@ class Model(nn.Module):
 
 class ActorCritic(nn.Module):
     action_dim: int
+    hidden_dim: int
+    n_msg_stps: int
 
     def setup(self):
-        self.model = Model(input_dim=3, output_dim=32)
+        self.model = Model(output_dim=self.hidden_dim, num_layers=self.n_msg_stps)
         self.value_head = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
         self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
 
@@ -136,7 +137,7 @@ if __name__ == "__main__":
     env = DFABisimEnv()
     env = LogWrapper(env=env, config=config)
     rng = jax.random.PRNGKey(30)
-    network = ActorCritic(env.action_space(env.agents[0]).n)
+    network = ActorCritic(action_dim=env.action_space(env.agents[0]).n, hidden_dim=32, n_msg_stps=env.sampler.max_size)
     train_jit = jax.jit(make_train(config, env, network, _batchify, _unbatchify))
     out = train_jit(rng)
 
