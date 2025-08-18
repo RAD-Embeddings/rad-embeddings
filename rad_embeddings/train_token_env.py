@@ -138,6 +138,12 @@ if __name__ == "__main__":
         default=32,
         help="Size of the RAD embeddings"
     )
+    parser.add_argument(
+        "--freeze-encoder",
+        type=bool,
+        default=True,
+        help="Freeze the encoder"
+    )
     args = parser.parse_args()
 
     rng = jax.random.PRNGKey(args.seed)
@@ -155,7 +161,7 @@ if __name__ == "__main__":
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder,
         encoder_params=encoder_params,
-        freeze_encoder=True
+        freeze_encoder=args.freeze_encoder
     )
 
     train_jit = jax.jit(make_train(config, env, network, _batchify))
