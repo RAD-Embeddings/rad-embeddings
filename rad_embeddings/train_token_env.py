@@ -8,22 +8,21 @@ import flax.linen as nn
 from ppo import make_train
 from encoder import Encoder
 from dfax import batch2graph
+from flax.core import FrozenDict
 from dfa_gym import TokenEnv, DFAWrapper
 from wrappers import LogWrapper
 from flax.linen.initializers import constant, orthogonal
 
 
 class CNN(nn.Module):
+    dims: list[int]
 
     @nn.compact
     def __call__(self, x):
-        x = nn.Conv(16, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
-        x = nn.relu(x)
-        x = nn.Conv(32, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
-        x = nn.relu(x)
-        x = nn.Conv(64, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
-        x = nn.relu(x)
-        return x.reshape((x.shape[0], -1)) # Flatten (start_dim=B)
+        for dim in self.dims:
+            x = nn.Conv(dim, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
+            x = nn.relu(x)
+        return x.reshape((x.shape[0], -1))
 
 
 class MLP(nn.Module):
@@ -39,16 +38,16 @@ class MLP(nn.Module):
 
 class ActorCritic(nn.Module):
     action_dim: int
-    encoder_dir: str
+    encoder: nn.Module
+    encoder_params: FrozenDict
+    freeze_encoder: bool = True
 
     def setup(self):
-        self.cnn = CNN()
-        self.encoder = Encoder(output_dim=32, num_layers=10)
+        self.cnn = CNN([16, 32, 64])
         self.value_feat = MLP([64, 64])
         self.policy_feat = MLP([64, 64, 64])
         self.value_net = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
         self.policy_net = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
-        self.pretrained_encoder_params = Encoder.load_params(output_dim=32, n_msg_stps=10, encoder_dir=self.encoder_dir)
 
     @nn.compact
     def __call__(self, wrapped_obs):
@@ -65,7 +64,9 @@ class ActorCritic(nn.Module):
 
         graph = batch2graph(graph)
 
-        dfa_feat = jax.lax.stop_gradient(self.encoder.apply(self.pretrained_encoder_params, graph))
+        dfa_feat = jnp.where(self.freeze_encoder,
+            jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, graph)),
+            self.encoder.apply(self.encoder_params, graph))
 
         feat = jnp.concatenate([obs_feat, dfa_feat], axis=-1)
 
@@ -131,6 +132,12 @@ if __name__ == "__main__":
         default="storage",
         help="Directory for saving the trained encoder"
     )
+    parser.add_argument(
+        "--rad-dim",
+        type=int,
+        default=32,
+        help="Size of the RAD embeddings"
+    )
     args = parser.parse_args()
 
     rng = jax.random.PRNGKey(args.seed)
@@ -138,9 +145,17 @@ if __name__ == "__main__":
     env = DFAWrapper(TokenEnv())
     env = LogWrapper(env=env, config=config)
 
+    encoder, encoder_params = Encoder.load_params(
+        output_dim=args.rad_dim,
+        n_msg_stps=env.sampler.max_size,
+        encoder_dir=f"{args.save_dir}/trained_encoder_params_{args.seed}.msgpack"
+    )
+
     network = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
-        encoder_dir=f"{args.save_dir}/trained_encoder_params_{args.seed}.msgpack"
+        encoder=encoder,
+        encoder_params=encoder_params,
+        freeze_encoder=True
     )
 
     train_jit = jax.jit(make_train(config, env, network, _batchify))

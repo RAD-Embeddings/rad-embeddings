@@ -16,11 +16,9 @@ from flax.linen.initializers import constant, orthogonal
 
 class ActorCritic(nn.Module):
     action_dim: int
-    hidden_dim: int
-    n_msg_stps: int
+    encoder: nn.Module
 
     def setup(self):
-        self.encoder = Encoder(output_dim=self.hidden_dim, num_layers=self.n_msg_stps)
         self.value_head = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
         self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
 
@@ -85,13 +83,25 @@ if __name__ == "__main__":
         default="storage",
         help="Directory for saving the trained encoder"
     )
+    parser.add_argument(
+        "--rad-dim",
+        type=int,
+        default=32,
+        help="Dimension of the RAD embeddings"
+    )
     args = parser.parse_args()
 
     rng = jax.random.PRNGKey(args.seed)
 
     env = DFABisimEnv()
     env = LogWrapper(env=env, config=config)
-    network = ActorCritic(action_dim=env.action_space(env.agents[0]).n, hidden_dim=32, n_msg_stps=env.sampler.max_size)
+
+    encoder = Encoder(output_dim=args.rad_dim, n_msg_stps=env.sampler.max_size)
+
+    network = ActorCritic(
+        action_dim=env.action_space(env.agents[0]).n,
+        encoder=encoder
+    )
     
     train_jit = jax.jit(make_train(config, env, network, _batchify))
     out = train_jit(rng)
