@@ -20,7 +20,7 @@ class Transition():
     obs: jnp.ndarray
     info: jnp.ndarray
 
-def make_train(config, env, network, batchify, unbatchify):
+def make_train(config, env, network, batchify):
     config["NUM_AGENTS"] = env.num_agents
     config["NUM_ACTORS"] = config["NUM_AGENTS"] * config["NUM_ENVS"]
     config["NUM_UPDATES"] = (
@@ -79,7 +79,8 @@ def make_train(config, env, network, batchify, unbatchify):
                 action = pi.sample(seed=_rng)
                 log_prob = pi.log_prob(action)
 
-                env_act = unbatchify(action, env.agents, config["NUM_ENVS"])
+                _action = action.reshape((-1, config["NUM_ENVS"]))
+                env_act = {agent: _action[i] for i, agent in enumerate(env.agents)}
 
                 # STEP ENV
                 rng, _rng = jax.random.split(rng)
@@ -87,10 +88,10 @@ def make_train(config, env, network, batchify, unbatchify):
                 obsv, env_state, reward, done, info = jax.vmap(env.step)(rng_step, env_state, env_act)
                 info = jax.tree.map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
                 transition = Transition(
-                    done=batchify(done, env.agents),
+                    done=jnp.concatenate([done[agent] for agent in env.agents]),
                     action=action,
                     value=value,
-                    reward=batchify(reward, env.agents),
+                    reward=jnp.concatenate([reward[agent] for agent in env.agents]),
                     log_prob=log_prob,
                     obs=obs_batch,
                     info=info

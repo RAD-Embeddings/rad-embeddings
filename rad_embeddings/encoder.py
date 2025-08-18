@@ -1,6 +1,9 @@
+import jax
 import jraph
 import jax.numpy as jnp
 import flax.linen as nn
+from dfax.samplers import RADSampler
+import flax.serialization as serialization
 
 
 class GATv2Conv(nn.Module):
@@ -37,6 +40,18 @@ class Encoder(nn.Module):
     hidden_dim: int = 64
     num_layers: int = 10
     n_heads: int = 4
+
+    @staticmethod
+    def load_params(output_dim, n_msg_stps, encoder_dir):
+        encoder = Encoder(output_dim=output_dim, num_layers=n_msg_stps)
+        sampler = RADSampler(p=None)
+        rng = jax.random.PRNGKey(30)
+        dfa = sampler.sample(rng)
+        dfa_graph = dfa.to_graph()
+        network_params = encoder.init(rng, dfa_graph)
+        with open(encoder_dir, "rb") as f:
+            loaded_params = serialization.from_bytes(network_params, f.read())
+        return loaded_params
 
     def setup(self):
         self.linear_h = nn.Dense(self.hidden_dim)

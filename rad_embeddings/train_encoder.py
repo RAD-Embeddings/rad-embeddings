@@ -53,9 +53,6 @@ class ActorCritic(nn.Module):
 def _batchify(obss: dict, agents):
     return obss[agents[0]]
 
-def _unbatchify(actions: jnp.ndarray, agents, n_envs):
-    return {agents[0]: actions}
-
 
 if __name__ == "__main__":
     config = {
@@ -96,7 +93,7 @@ if __name__ == "__main__":
     env = LogWrapper(env=env, config=config)
     network = ActorCritic(action_dim=env.action_space(env.agents[0]).n, hidden_dim=32, n_msg_stps=env.sampler.max_size)
     
-    train_jit = jax.jit(make_train(config, env, network, _batchify, _unbatchify))
+    train_jit = jax.jit(make_train(config, env, network, _batchify))
     out = train_jit(rng)
 
     os.makedirs(args.save_dir, exist_ok=True)
@@ -104,19 +101,4 @@ if __name__ == "__main__":
     trained_encoder_params = {"params": trained_params["params"]["encoder"]}
     with open(f"{args.save_dir}/trained_encoder_params_{args.seed}.msgpack", "wb") as f:
         f.write(serialization.to_bytes(trained_encoder_params))
-
-
-
-    # encoder = Encoder(output_dim=32, num_layers=env.sampler.max_size)
-    # from dfax.samplers import RADSampler
-    # sampler = RADSampler(p=None)
-    # dfa = sampler.sample(rng)
-    # dfa_graph = dfa.to_graph()
-    # network_params = encoder.init(rng, dfa_graph)
-    # with open("trained_encoder.msgpack", "rb") as f:
-    #     loaded_params = serialization.from_bytes(network_params, f.read())
-
-    # rad = encoder.apply(loaded_params, dfa.to_graph())
-    # print(rad)
-    # print(rad.shape)
 
