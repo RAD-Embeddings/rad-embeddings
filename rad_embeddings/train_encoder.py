@@ -1,3 +1,4 @@
+import os
 import jax
 import jraph
 import distrax
@@ -81,6 +82,12 @@ if __name__ == "__main__":
         default=42,
         help="Seed used for PRNGKey"
     )
+    parser.add_argument(
+        "--save-dir",
+        type=str,
+        default="storage",
+        help="Directory for saving the trained encoder"
+    )
     args = parser.parse_args()
 
     rng = jax.random.PRNGKey(args.seed)
@@ -92,9 +99,10 @@ if __name__ == "__main__":
     train_jit = jax.jit(make_train(config, env, network, _batchify, _unbatchify))
     out = train_jit(rng)
 
+    os.makedirs(args.save_dir, exist_ok=True)
     trained_params = out["runner_state"][0].params
     trained_encoder_params = {"params": trained_params["params"]["encoder"]}
-    with open(f"trained_encoder_params_{args.seed}.msgpack", "wb") as f:
+    with open(f"{args.save_dir}/trained_encoder_params_{args.seed}.msgpack", "wb") as f:
         f.write(serialization.to_bytes(trained_encoder_params))
 
 
