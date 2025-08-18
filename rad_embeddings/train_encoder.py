@@ -1,75 +1,16 @@
 import jax
 import jraph
 import distrax
-import numpy as np
+import argparse
 import jax.numpy as jnp
 import flax.linen as nn
 from ppo import make_train
+from encoder import Encoder
 from dfax import batch2graph
 from dfa_gym import DFABisimEnv
 from wrappers import LogWrapper
+import flax.serialization as serialization
 from flax.linen.initializers import constant, orthogonal
-
-
-class GATv2Conv(nn.Module):
-    out_dim: int
-    num_heads: int
-
-    def setup(self):
-        self.W_s = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        self.W_t = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        self.W_e = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        self.a = nn.Dense(1, use_bias=False)
-
-    def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
-        n_nodes = node_features.shape[0]
-
-        src, tgt = edge_index
-        src_features = node_features[src]
-        tgt_features = node_features[tgt]
-
-        h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
-        h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
-        h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
-
-        logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
-        attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
-        msgs = attn * (h_t + h_e)
-        h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
-
-        return h
-
-
-class Model(nn.Module):
-    output_dim: int
-    hidden_dim: int = 64
-    num_layers: int = 10
-    n_heads: int = 4
-
-    def setup(self):
-        self.linear_h = nn.Dense(self.hidden_dim)
-        self.linear_e = nn.Dense(self.hidden_dim)
-        self.gatv2 = GATv2Conv(out_dim=self.hidden_dim, num_heads=self.n_heads)
-        self.g_embed = nn.Dense(self.output_dim)
-
-    def __call__(
-        self,
-        graph
-    ) -> jnp.ndarray:
-
-        h0 = self.linear_h(graph["node_features"].astype(jnp.float32))
-        e = self.linear_e(graph["edge_features"].astype(jnp.float32))
-        h = h0
-
-        mask = graph["n_states"]
-
-        for _ in range(self.num_layers):
-            # h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
-            _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
-            h = jnp.where((mask > 0)[:, None], _h, h)
-            mask -= 1
-
-        return self.g_embed(h[graph["current_state"]])
 
 
 class ActorCritic(nn.Module):
@@ -78,7 +19,7 @@ class ActorCritic(nn.Module):
     n_msg_stps: int
 
     def setup(self):
-        self.model = Model(output_dim=self.hidden_dim, num_layers=self.n_msg_stps)
+        self.encoder = Encoder(output_dim=self.hidden_dim, num_layers=self.n_msg_stps)
         self.value_head = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
         self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
 
@@ -97,7 +38,7 @@ class ActorCritic(nn.Module):
 
         graph = batch2graph(batch)
 
-        feat = self.model(graph)
+        feat = self.encoder(graph)
         feat_l, feat_r = jnp.array_split(feat, 2)
         feat = jnp.concatenate([feat_l, feat_r], axis=-1)
 
@@ -118,7 +59,7 @@ def _unbatchify(actions: jnp.ndarray, agents, n_envs):
 if __name__ == "__main__":
     config = {
         "LR": 1e-3,
-        "NUM_ENVS": 8,
+        "NUM_ENVS": 16,
         "NUM_STEPS": 512,
         "TOTAL_TIMESTEPS": 1e6,
         "UPDATE_EPOCHS": 2,
@@ -132,12 +73,42 @@ if __name__ == "__main__":
         "ANNEAL_LR": False,
         "DEBUG": True,
     }
-    # from dfax.samplers import RADSampler
-    # env = DFABisimEnv(sampler=RADSampler(p=None))
+
+    parser = argparse.ArgumentParser(description="Train DFA encoder")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Seed used for PRNGKey"
+    )
+    args = parser.parse_args()
+
+    rng = jax.random.PRNGKey(args.seed)
+
     env = DFABisimEnv()
     env = LogWrapper(env=env, config=config)
-    rng = jax.random.PRNGKey(30)
     network = ActorCritic(action_dim=env.action_space(env.agents[0]).n, hidden_dim=32, n_msg_stps=env.sampler.max_size)
+    
     train_jit = jax.jit(make_train(config, env, network, _batchify, _unbatchify))
     out = train_jit(rng)
+
+    trained_params = out["runner_state"][0].params
+    trained_encoder_params = {"params": trained_params["params"]["encoder"]}
+    with open(f"trained_encoder_params_{args.seed}.msgpack", "wb") as f:
+        f.write(serialization.to_bytes(trained_encoder_params))
+
+
+
+    # encoder = Encoder(output_dim=32, num_layers=env.sampler.max_size)
+    # from dfax.samplers import RADSampler
+    # sampler = RADSampler(p=None)
+    # dfa = sampler.sample(rng)
+    # dfa_graph = dfa.to_graph()
+    # network_params = encoder.init(rng, dfa_graph)
+    # with open("trained_encoder.msgpack", "rb") as f:
+    #     loaded_params = serialization.from_bytes(network_params, f.read())
+
+    # rad = encoder.apply(loaded_params, dfa.to_graph())
+    # print(rad)
+    # print(rad.shape)
 
