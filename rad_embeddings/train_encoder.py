@@ -43,8 +43,13 @@ class ActorCritic(nn.Module):
         logits = self.policy_head(feat)
 
         feat_l = feat_l / jnp.linalg.norm(feat_l, ord=2, axis=-1, keepdims=True)
+        feat_l = jnp.where(jnp.isnan(feat_l), 0, feat_l)
         feat_r = feat_r / jnp.linalg.norm(feat_r, ord=2, axis=-1, keepdims=True)
+        feat_r = jnp.where(jnp.isnan(feat_r), 0, feat_r)
         value = jnp.linalg.norm(feat_l - feat_r, ord=2, axis=-1)
+
+        # jax.debug.print("value = {value}", value=value, ordered=True)
+        # jax.debug.print("feat_r = {feat_r}", feat_r=feat_r, ordered=True)
 
         pi = distrax.Categorical(logits=logits)
         return pi, value
