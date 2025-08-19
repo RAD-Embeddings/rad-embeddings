@@ -19,7 +19,6 @@ class ActorCritic(nn.Module):
     encoder: nn.Module
 
     def setup(self):
-        self.value_head = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
         self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
 
     def __call__(self, batch):
@@ -39,10 +38,13 @@ class ActorCritic(nn.Module):
 
         feat = self.encoder(graph)
         feat_l, feat_r = jnp.array_split(feat, 2)
-        feat = jnp.concatenate([feat_l, feat_r], axis=-1)
 
+        feat = jnp.concatenate([feat_l, feat_r], axis=-1)
         logits = self.policy_head(feat)
-        value = self.value_head(feat)
+
+        feat_l = feat_l / jnp.linalg.norm(feat_l, ord=2, axis=-1, keepdims=True)
+        feat_r = feat_r / jnp.linalg.norm(feat_r, ord=2, axis=-1, keepdims=True)
+        value = jnp.linalg.norm(feat_l - feat_r, ord=2, axis=-1)
 
         pi = distrax.Categorical(logits=logits)
         return pi, jnp.squeeze(value, axis=-1)
