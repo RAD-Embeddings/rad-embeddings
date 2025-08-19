@@ -223,41 +223,77 @@ def make_train(config, env, network, batchify):
             # Debugging mode
             if config.get("DEBUG"):
                 steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
+                ep_len_buffer = deque(maxlen=steps_per_update)
                 return_buffer = deque(maxlen=steps_per_update)
                 disc_return_buffer = deque(maxlen=steps_per_update)
                 start_time = time.time()
 
-                def callback(info):
+                def callback(info, loss_info):
                     nonlocal start_time
+
+                    total_loss, (value_loss, loss_actor, entropy) = loss_info
+
+                    ep_len_values = info["returned_episode_lengths"][info["returned_episode"]]
+                    ep_len_buffer.extend(ep_len_values)
 
                     return_values = info["returned_episode_returns"][info["returned_episode"]]
                     return_buffer.extend(return_values)
+
+                    print(return_buffer)
+
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
                     disc_return_buffer.extend(disc_return_values)
 
                     timesteps = info["timestep"][-1, :]
-                    global_step = jnp.sum(timesteps) / config["NUM_AGENTS"]
+                    timestep = jnp.sum(timesteps) / config["NUM_AGENTS"]
+
+                    min_ep_len_value = np.min(ep_len_buffer)
+                    mean_ep_len_value = np.mean(ep_len_buffer)
+                    max_ep_len_value = np.max(ep_len_buffer)
 
                     min_return_value = np.min(return_buffer)
                     mean_return_value = np.mean(return_buffer)
                     max_return_value = np.max(return_buffer)
+
                     mean_disc_return_value = np.mean(disc_return_buffer)
 
                     elapsed = time.time() - start_time
                     fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
 
-                    jax.debug.print("global step={global_step}, min return={min_return_value}, mean return={mean_return_value}, max return={max_return_value}, mean disc return={mean_disc_return_value}, fps={fps}",
-                        global_step=global_step,
+                    jax.debug.print(
+                        """
+timestep            = {timestep}
+min episode length  = {min_ep_len_value}
+mean episode length = {mean_ep_len_value}
+max episode length  = {max_ep_len_value}
+min return          = {min_return_value}
+mean return         = {mean_return_value}
+max return          = {max_return_value}
+mean disc return    = {mean_disc_return_value}
+total loss          = {total_loss}
+value loss          = {value_loss}
+actor loss          = {loss_actor}
+entropy             = {entropy}
+fps                 = {fps}
+                        """,
+                        timestep=timestep,
+                        min_ep_len_value=min_ep_len_value,
+                        mean_ep_len_value=mean_ep_len_value,
+                        max_ep_len_value=max_ep_len_value,
                         min_return_value=min_return_value,
                         mean_return_value=mean_return_value,
                         max_return_value=max_return_value,
                         mean_disc_return_value=mean_disc_return_value,
+                        total_loss=np.mean(total_loss),
+                        value_loss=np.mean(value_loss),
+                        loss_actor=np.mean(loss_actor),
+                        entropy=np.mean(entropy),
                         fps=fps,
                         ordered=True)
 
                     start_time = time.time()
 
-                jax.debug.callback(callback, metric)
+                jax.debug.callback(callback, metric, loss_info)
 
             runner_state = (train_state, env_state, last_obs, rng)
             return runner_state, metric
