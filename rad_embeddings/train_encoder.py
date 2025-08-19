@@ -40,9 +40,9 @@ class ActorCritic(nn.Module):
         feat = self.encoder(graph)
         feat_l, feat_r = jnp.array_split(feat, 2)
 
-        feat_l = feat_l / self.safe_l2_norm(feat_l)
-        feat_r = feat_r / self.safe_l2_norm(feat_r)
-        value = self.safe_l2_norm(feat_l - feat_r)
+        feat_l_normalized = feat_l / self.safe_l2_norm(feat_l)
+        feat_r_normalized = feat_r / self.safe_l2_norm(feat_r)
+        value = self.safe_l2_norm(feat_l_normalized - feat_r_normalized)
 
         feat = jnp.concatenate([feat_l, feat_r], axis=-1)
         logits = self.policy_head(feat)
