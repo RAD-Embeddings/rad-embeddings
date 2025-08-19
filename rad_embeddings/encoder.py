@@ -18,19 +18,37 @@ class GATv2Conv(nn.Module):
 
     def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
         n_nodes = node_features.shape[0]
+        src_idx, tgt_idx = edge_index
 
-        src, tgt = edge_index
-        src_features = node_features[src]
-        tgt_features = node_features[tgt]
+        src_features = node_features[src_idx]
+        tgt_features = node_features[tgt_idx]
+
+        src_mask = jnp.any(src_features != 0, axis=-1)
+        tgt_mask = jnp.any(tgt_features != 0, axis=-1)
+        edge_mask = jnp.any(edge_features != 0, axis=-1)
+
+        combined_mask = src_mask & tgt_mask & edge_mask
 
         h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
         h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
         h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
 
-        logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
-        attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
-        msgs = attn * (h_t + h_e)
-        h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
+        h_s = h_s * combined_mask[:, None, None]
+        h_t = h_t * combined_mask[:, None, None]
+        h_e = h_e * combined_mask[:, None, None]
+
+        logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2)).squeeze(-1)
+        logits = jnp.where(combined_mask[:, None], logits, -jnp.inf)
+
+        attn = jraph.segment_softmax(logits, src_idx, num_segments=n_nodes)
+
+        msgs = attn[:, :, None] * (h_t + h_e)
+
+        h = jraph.segment_sum(msgs, src_idx, num_segments=n_nodes)
+
+        nonzero_msg_count = jraph.segment_sum(combined_mask.astype(jnp.float32), src_idx, num_segments=n_nodes)
+        node_mask = nonzero_msg_count > 0
+        h = h * node_mask[:, None, None]
 
         return h
 
