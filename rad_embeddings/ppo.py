@@ -239,8 +239,6 @@ def make_train(config, env, network, batchify):
                     return_values = info["returned_episode_returns"][info["returned_episode"]]
                     return_buffer.extend(return_values)
 
-                    print(return_buffer)
-
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
                     disc_return_buffer.extend(disc_return_values)
 
