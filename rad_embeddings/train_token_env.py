@@ -8,9 +8,9 @@ import flax.linen as nn
 from ppo import make_train
 from encoder import Encoder
 from dfax import batch2graph
+from wrappers import LogWrapper
 from flax.core import FrozenDict
 from dfa_gym import TokenEnv, DFAWrapper
-from wrappers import LogWrapper
 from flax.linen.initializers import constant, orthogonal
 
 

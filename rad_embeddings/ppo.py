@@ -238,15 +238,19 @@ def make_train(config, env, network, batchify):
                     timesteps = info["timestep"][-1, :]
                     global_step = jnp.sum(timesteps) / config["NUM_AGENTS"]
 
-                    mean_return_value = float(np.mean(return_buffer))
-                    mean_disc_return_value = float(np.mean(disc_return_buffer))
+                    min_return_value = np.min(return_buffer)
+                    mean_return_value = np.mean(return_buffer)
+                    max_return_value = np.max(return_buffer)
+                    mean_disc_return_value = np.mean(disc_return_buffer)
 
                     elapsed = time.time() - start_time
                     fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
 
-                    jax.debug.print("global step={global_step}, mean return={mean_return_value}, mean disc return={mean_disc_return_value}, fps={fps}",
+                    jax.debug.print("global step={global_step}, min return={min_return_value}, mean return={mean_return_value}, max return={max_return_value}, mean disc return={mean_disc_return_value}, fps={fps}",
                         global_step=global_step,
+                        min_return_value=min_return_value,
                         mean_return_value=mean_return_value,
+                        max_return_value=max_return_value,
                         mean_disc_return_value=mean_disc_return_value,
                         fps=fps,
                         ordered=True)
