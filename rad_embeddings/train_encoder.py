@@ -47,7 +47,7 @@ class ActorCritic(nn.Module):
         value = jnp.linalg.norm(feat_l - feat_r, ord=2, axis=-1)
 
         pi = distrax.Categorical(logits=logits)
-        return pi, jnp.squeeze(value, axis=-1)
+        return pi, value
 
 
 def _batchify(obss: dict, agents):
