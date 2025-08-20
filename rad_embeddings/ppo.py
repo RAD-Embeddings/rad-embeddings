@@ -223,7 +223,12 @@ def make_train(config, env, network, batchify):
 
             if config.get("WANDB"):
                 def callback(info, loss_info):
-                    wandb.log({**info, **loss_info})
+                    total_loss, (value_loss, loss_actor, entropy) = loss_info
+                    info["total_loss"] = total_loss
+                    info["value_loss"] = value_loss
+                    info["loss_actor"] = loss_actor
+                    info["entropy"] = entropy
+                    wandb.log(info)
                 jax.experimental.io_callback(callback, None, metric, loss_info)
             
             # Debugging mode
