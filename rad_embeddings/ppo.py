@@ -257,12 +257,12 @@ def make_train(config, env, network, batchify):
 
                     log["mean_disc_return"] = np.mean(disc_return_buffer)
 
-                    total_loss, (value_loss, loss_actor, entropy) = loss_info
+                    total_loss, (value_loss, actor_loss, entropy) = loss_info
 
-                    log["mean_total_loss"] = np.mean(total_loss)
-                    log["mean_value_loss"] = np.mean(value_loss)
-                    log["mean_loss_actor"] = np.mean(loss_actor)
-                    log["mean_entropy"] = np.mean(entropy)
+                    log["total_loss"] = np.mean(total_loss)
+                    log["value_loss"] = np.mean(value_loss)
+                    log["actor_loss"] = np.mean(actor_loss)
+                    log["entropy"] = np.mean(entropy)
 
                     timesteps = info["timestep"][-1, :]
                     timestep = int(jnp.sum(timesteps) / config["NUM_AGENTS"])
@@ -281,7 +281,12 @@ def make_train(config, env, network, batchify):
                 def callback(info, loss_info):
                     nonlocal start_time
 
-                    total_loss, (value_loss, loss_actor, entropy) = loss_info
+                    elapsed = time.time() - start_time
+                    fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
+
+                    log = {
+                        "fps": np.mean(fps),
+                    }
 
                     ep_len_values = info["returned_episode_lengths"][info["returned_episode"]]
                     ep_len_buffer.extend(ep_len_values)
@@ -292,51 +297,55 @@ def make_train(config, env, network, batchify):
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
                     disc_return_buffer.extend(disc_return_values)
 
+                    log["min_ep_len"] = np.min(ep_len_buffer)
+                    log["mean_ep_len"] = np.mean(ep_len_buffer)
+                    log["max_ep_len"] = np.max(ep_len_buffer)
+
+                    log["min_return"] = np.min(return_buffer)
+                    log["mean_return"] = np.mean(return_buffer)
+                    log["max_return"] = np.max(return_buffer)
+
+                    log["mean_disc_return"] = np.mean(disc_return_buffer)
+
+                    total_loss, (value_loss, actor_loss, entropy) = loss_info
+
+                    log["total_loss"] = np.mean(total_loss)
+                    log["value_loss"] = np.mean(value_loss)
+                    log["actor_loss"] = np.mean(actor_loss)
+                    log["entropy"] = np.mean(entropy)
+
                     timesteps = info["timestep"][-1, :]
-                    timestep = jnp.sum(timesteps) / config["NUM_AGENTS"]
-
-                    min_ep_len_value = np.min(ep_len_buffer)
-                    mean_ep_len_value = np.mean(ep_len_buffer)
-                    max_ep_len_value = np.max(ep_len_buffer)
-
-                    min_return_value = np.min(return_buffer)
-                    mean_return_value = np.mean(return_buffer)
-                    max_return_value = np.max(return_buffer)
-
-                    mean_disc_return_value = np.mean(disc_return_buffer)
-
-                    elapsed = time.time() - start_time
-                    fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
+                    log["timestep"] = int(jnp.sum(timesteps) / config["NUM_AGENTS"])
 
                     jax.debug.print(
                         """
 timestep            = {timestep}
-min episode length  = {min_ep_len_value}
-mean episode length = {mean_ep_len_value}
-max episode length  = {max_ep_len_value}
-min return          = {min_return_value}
-mean return         = {mean_return_value}
-max return          = {max_return_value}
-mean disc return    = {mean_disc_return_value}
+mean disc return    = {mean_disc_return}
+min return          = {min_return}
+mean return         = {mean_return}
+max return          = {max_return}
+min episode length  = {min_ep_len}
+mean episode length = {mean_ep_len}
+max episode length  = {max_ep_len}
 total loss          = {total_loss}
 value loss          = {value_loss}
-actor loss          = {loss_actor}
+actor loss          = {actor_loss}
 entropy             = {entropy}
 fps                 = {fps}
                         """,
-                        timestep=timestep,
-                        min_ep_len_value=min_ep_len_value,
-                        mean_ep_len_value=mean_ep_len_value,
-                        max_ep_len_value=max_ep_len_value,
-                        min_return_value=min_return_value,
-                        mean_return_value=mean_return_value,
-                        max_return_value=max_return_value,
-                        mean_disc_return_value=mean_disc_return_value,
-                        total_loss=np.mean(total_loss),
-                        value_loss=np.mean(value_loss),
-                        loss_actor=np.mean(loss_actor),
-                        entropy=np.mean(entropy),
-                        fps=fps,
+                        timestep=log["timestep"],
+                        mean_disc_return=log["mean_disc_return"],
+                        min_return=log["min_return"],
+                        mean_return=log["mean_return"],
+                        max_return=log["max_return"],
+                        min_ep_len=log["min_ep_len"],
+                        mean_ep_len=log["mean_ep_len"],
+                        max_ep_len=log["max_ep_len"],
+                        total_loss=log["total_loss"],
+                        value_loss=log["value_loss"],
+                        actor_loss=log["actor_loss"],
+                        entropy=log["entropy"],
+                        fps=log["fps"],
                         ordered=True)
 
                     start_time = time.time()
