@@ -221,11 +221,12 @@ def make_train(config, env, network, batchify):
             metric = traj_batch.info
             rng = update_state[-1]
 
+            steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
+
             if config.get("WANDB"):
-                steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
-                ep_len_buffer = deque(maxlen=steps_per_update)
-                return_buffer = deque(maxlen=steps_per_update)
-                disc_return_buffer = deque(maxlen=steps_per_update)
+                ep_len_buffer_wandb = deque(maxlen=steps_per_update)
+                return_buffer_wandb = deque(maxlen=steps_per_update)
+                disc_return_buffer_wandb = deque(maxlen=steps_per_update)
                 start_time_wandb = time.time()
 
                 def callback(info, loss_info):
@@ -239,23 +240,23 @@ def make_train(config, env, network, batchify):
                     }
 
                     ep_len_values = info["returned_episode_lengths"][info["returned_episode"]]
-                    ep_len_buffer.extend(ep_len_values)
+                    ep_len_buffer_wandb.extend(ep_len_values)
 
                     return_values = info["returned_episode_returns"][info["returned_episode"]]
-                    return_buffer.extend(return_values)
+                    return_buffer_wandb.extend(return_values)
 
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
-                    disc_return_buffer.extend(disc_return_values)
+                    disc_return_buffer_wandb.extend(disc_return_values)
 
-                    log["min_ep_len"] = np.min(ep_len_buffer)
-                    log["mean_ep_len"] = np.mean(ep_len_buffer)
-                    log["max_ep_len"] = np.max(ep_len_buffer)
+                    log["min_ep_len"] = np.min(ep_len_buffer_wandb)
+                    log["mean_ep_len"] = np.mean(ep_len_buffer_wandb)
+                    log["max_ep_len"] = np.max(ep_len_buffer_wandb)
 
-                    log["min_return"] = np.min(return_buffer)
-                    log["mean_return"] = np.mean(return_buffer)
-                    log["max_return"] = np.max(return_buffer)
+                    log["min_return"] = np.min(return_buffer_wandb)
+                    log["mean_return"] = np.mean(return_buffer_wandb)
+                    log["max_return"] = np.max(return_buffer_wandb)
 
-                    log["mean_disc_return"] = np.mean(disc_return_buffer)
+                    log["mean_disc_return"] = np.mean(disc_return_buffer_wandb)
 
                     total_loss, (value_loss, actor_loss, entropy) = loss_info
 
@@ -274,10 +275,9 @@ def make_train(config, env, network, batchify):
             
             # Debugging mode
             if config.get("DEBUG"):
-                steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
-                ep_len_buffer = deque(maxlen=steps_per_update)
-                return_buffer = deque(maxlen=steps_per_update)
-                disc_return_buffer = deque(maxlen=steps_per_update)
+                ep_len_buffer_debug = deque(maxlen=steps_per_update)
+                return_buffer_debug = deque(maxlen=steps_per_update)
+                disc_return_buffer_debug = deque(maxlen=steps_per_update)
                 start_time_debug = time.time()
 
                 def callback(info, loss_info):
@@ -291,23 +291,23 @@ def make_train(config, env, network, batchify):
                     }
 
                     ep_len_values = info["returned_episode_lengths"][info["returned_episode"]]
-                    ep_len_buffer.extend(ep_len_values)
+                    ep_len_buffer_debug.extend(ep_len_values)
 
                     return_values = info["returned_episode_returns"][info["returned_episode"]]
-                    return_buffer.extend(return_values)
+                    return_buffer_debug.extend(return_values)
 
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
-                    disc_return_buffer.extend(disc_return_values)
+                    disc_return_buffer_debug.extend(disc_return_values)
 
-                    log["min_ep_len"] = np.min(ep_len_buffer)
-                    log["mean_ep_len"] = np.mean(ep_len_buffer)
-                    log["max_ep_len"] = np.max(ep_len_buffer)
+                    log["min_ep_len"] = np.min(ep_len_buffer_debug)
+                    log["mean_ep_len"] = np.mean(ep_len_buffer_debug)
+                    log["max_ep_len"] = np.max(ep_len_buffer_debug)
 
-                    log["min_return"] = np.min(return_buffer)
-                    log["mean_return"] = np.mean(return_buffer)
-                    log["max_return"] = np.max(return_buffer)
+                    log["min_return"] = np.min(return_buffer_debug)
+                    log["mean_return"] = np.mean(return_buffer_debug)
+                    log["max_return"] = np.max(return_buffer_debug)
 
-                    log["mean_disc_return"] = np.mean(disc_return_buffer)
+                    log["mean_disc_return"] = np.mean(disc_return_buffer_debug)
 
                     total_loss, (value_loss, actor_loss, entropy) = loss_info
 
