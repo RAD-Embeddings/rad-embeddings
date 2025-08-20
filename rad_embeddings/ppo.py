@@ -231,18 +231,42 @@ def make_train(config, env, network, batchify):
                 def callback(info, loss_info):
                     nonlocal start_time
 
-                    total_loss, (value_loss, loss_actor, entropy) = loss_info
-
                     elapsed = time.time() - start_time
                     fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
 
                     log = {
-                        "mean_total_loss": np.mean(total_loss),
-                        "mean_value_loss": np.mean(value_loss),
-                        "mean_loss_actor": np.mean(loss_actor),
-                        "mean_loss_actor": np.mean(entropy),
                         "fps": np.mean(fps),
                     }
+
+                    ep_len_values = info["returned_episode_lengths"][info["returned_episode"]]
+                    ep_len_buffer.extend(ep_len_values)
+
+                    return_values = info["returned_episode_returns"][info["returned_episode"]]
+                    return_buffer.extend(return_values)
+
+                    disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
+                    disc_return_buffer.extend(disc_return_values)
+
+                    timesteps = info["timestep"][-1, :]
+                    log["timestep"] = jnp.sum(timesteps) / config["NUM_AGENTS"]
+
+                    log["min_ep_len"] = np.min(ep_len_buffer)
+                    log["mean_ep_len"] = np.mean(ep_len_buffer)
+                    log["max_ep_len"] = np.max(ep_len_buffer)
+
+                    log["min_return"] = np.min(return_buffer)
+                    log["mean_return"] = np.mean(return_buffer)
+                    log["max_return"] = np.max(return_buffer)
+
+                    log["mean_disc_return"] = np.mean(disc_return_buffer)
+
+                    total_loss, (value_loss, loss_actor, entropy) = loss_info
+
+                    log["mean_total_loss"] = np.mean(total_loss)
+                    log["mean_value_loss"] = np.mean(value_loss)
+                    log["mean_loss_actor"] = np.mean(loss_actor)
+                    log["mean_entropy"] = np.mean(entropy)
+
                     wandb.log(log)
                 jax.experimental.io_callback(callback, None, metric, loss_info)
             
