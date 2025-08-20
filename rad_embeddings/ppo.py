@@ -319,8 +319,8 @@ def make_train(config, env, network, batchify):
                     timesteps = info["timestep"][-1, :]
                     log["timestep"] = int(np.sum(timesteps) / config["NUM_AGENTS"])
 
-                    counts = Counter(return_buffer_debug)
-                    return_dist = {i: counts[i]/steps_per_update for i in counts}
+                    counts = Counter([int(x) for x in return_buffer_debug])
+                    return_dist = {i: float(counts[i])/float(steps_per_update) for i in counts}
 
                     jax.debug.print(
                         """
