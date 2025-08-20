@@ -23,15 +23,22 @@ class GATv2Conv(nn.Module):
         src_features = node_features[src]
         tgt_features = node_features[tgt]
 
+        src_mask = jnp.any(src_features != 0, axis=-1)
+        tgt_mask = jnp.any(tgt_features != 0, axis=-1)
         edge_mask = jnp.any(edge_features != 0, axis=-1)
+        mask = src_mask | tgt_mask | edge_mask
 
         h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
+        h_s = jnp.where(mask[:, None, None], h_s, 0)
+
         h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
+        h_t = jnp.where(mask[:, None, None], h_t, 0)
+
         h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
-        h_e = jnp.where(edge_mask[:, None, None], h_e, 0)
+        h_e = jnp.where(mask[:, None, None], h_e, 0)
 
         logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
-        logits = jnp.where(edge_mask[:, None, None], logits, -jnp.inf)
+        logits = jnp.where(mask[:, None, None], logits, -jnp.inf)
         attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
         msgs = attn * (h_t + h_e)
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
