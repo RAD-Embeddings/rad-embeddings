@@ -247,9 +247,6 @@ def make_train(config, env, network, batchify):
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
                     disc_return_buffer.extend(disc_return_values)
 
-                    timesteps = info["timestep"][-1, :]
-                    log["timestep"] = jnp.sum(timesteps) / config["NUM_AGENTS"]
-
                     log["min_ep_len"] = np.min(ep_len_buffer)
                     log["mean_ep_len"] = np.mean(ep_len_buffer)
                     log["max_ep_len"] = np.max(ep_len_buffer)
@@ -267,7 +264,10 @@ def make_train(config, env, network, batchify):
                     log["mean_loss_actor"] = np.mean(loss_actor)
                     log["mean_entropy"] = np.mean(entropy)
 
-                    wandb.log(log)
+                    timesteps = info["timestep"][-1, :]
+                    timestep = int(jnp.sum(timesteps) / config["NUM_AGENTS"])
+
+                    wandb.log(log, step=timestep)
                 jax.experimental.io_callback(callback, None, metric, loss_info)
             
             # Debugging mode
