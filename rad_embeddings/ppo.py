@@ -226,12 +226,12 @@ def make_train(config, env, network, batchify):
                 ep_len_buffer = deque(maxlen=steps_per_update)
                 return_buffer = deque(maxlen=steps_per_update)
                 disc_return_buffer = deque(maxlen=steps_per_update)
-                start_time = time.time()
+                start_time_wandb = time.time()
 
                 def callback(info, loss_info):
-                    nonlocal start_time
+                    nonlocal start_time_wandb
 
-                    elapsed = time.time() - start_time
+                    elapsed = time.time() - start_time_wandb
                     fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
 
                     log = {
@@ -269,7 +269,7 @@ def make_train(config, env, network, batchify):
 
                     wandb.log(log, step=timestep)
 
-                    start_time = time.time()
+                    start_time_wandb = time.time()
                 jax.experimental.io_callback(callback, None, metric, loss_info)
             
             # Debugging mode
@@ -278,12 +278,12 @@ def make_train(config, env, network, batchify):
                 ep_len_buffer = deque(maxlen=steps_per_update)
                 return_buffer = deque(maxlen=steps_per_update)
                 disc_return_buffer = deque(maxlen=steps_per_update)
-                start_time = time.time()
+                start_time_debug = time.time()
 
                 def callback(info, loss_info):
-                    nonlocal start_time
+                    nonlocal start_time_debug
 
-                    elapsed = time.time() - start_time
+                    elapsed = time.time() - start_time_debug
                     fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
 
                     log = {
@@ -350,7 +350,7 @@ fps                 = {fps}
                         fps=log["fps"],
                         ordered=True)
 
-                    start_time = time.time()
+                    start_time_debug = time.time()
 
                 jax.debug.callback(callback, metric, loss_info)
 
