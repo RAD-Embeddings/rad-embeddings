@@ -16,6 +16,24 @@ class GATv2Conv(nn.Module):
         self.W_e = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.a = nn.Dense(1, use_bias=False)
 
+    # def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
+    #     n_nodes = node_features.shape[0]
+
+    #     src, tgt = edge_index
+    #     src_features = node_features[src]
+    #     tgt_features = node_features[tgt]
+
+    #     h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
+    #     h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
+    #     h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
+
+    #     logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
+    #     attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
+    #     msgs = attn * (h_t + h_e)
+    #     h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
+
+    #     return h
+
     def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
         n_nodes = node_features.shape[0]
 
@@ -39,8 +57,11 @@ class GATv2Conv(nn.Module):
 
         logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
         logits = jnp.where(mask[:, None, None], logits, -jnp.inf)
+
         attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
+
         msgs = attn * (h_t + h_e)
+
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
 
         return h
@@ -75,8 +96,14 @@ class Encoder(nn.Module):
         graph
     ) -> jnp.ndarray:
 
+        node_mask = jnp.any(graph["node_features"] != 0, axis=-1)
         h0 = self.linear_h(graph["node_features"].astype(jnp.float32))
+        h0 = jnp.where(node_mask[:, None], h0, 0)
+
+        edge_mask = jnp.any(graph["edge_features"] != 0, axis=-1)
         e = self.linear_e(graph["edge_features"].astype(jnp.float32))
+        e = jnp.where(edge_mask[:, None], e, 0)
+
         h = h0
 
         mask = graph["n_states"]
