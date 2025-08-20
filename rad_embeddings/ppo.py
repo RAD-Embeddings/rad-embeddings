@@ -268,6 +268,8 @@ def make_train(config, env, network, batchify):
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
 
                     wandb.log(log, step=timestep)
+
+                    start_time = time.time()
                 jax.experimental.io_callback(callback, None, metric, loss_info)
             
             # Debugging mode
