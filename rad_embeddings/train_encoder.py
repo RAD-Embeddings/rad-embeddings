@@ -59,9 +59,9 @@ def _batchify(obss: dict, agents):
 if __name__ == "__main__":
     config = {
         "LR": 1e-3,
-        "NUM_ENVS": 16,
+        "NUM_ENVS": 64,
         "NUM_STEPS": 512,
-        "TOTAL_TIMESTEPS": 1e6,
+        "TOTAL_TIMESTEPS": 5e6,
         "UPDATE_EPOCHS": 2,
         "NUM_MINIBATCHES": 4,
         "GAMMA": 0.9,
