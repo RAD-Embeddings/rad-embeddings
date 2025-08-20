@@ -7,7 +7,7 @@ import numpy as np
 import jax.numpy as jnp
 import flax.linen as nn
 from flax import struct
-from collections import deque
+from collections import deque, Counter
 from flax.training.train_state import TrainState
 
 
@@ -319,6 +319,9 @@ def make_train(config, env, network, batchify):
                     timesteps = info["timestep"][-1, :]
                     log["timestep"] = int(np.sum(timesteps) / config["NUM_AGENTS"])
 
+                    counts = Counter(return_buffer_debug)
+                    return_dist = {i: counts[i]/steps_per_update for i in counts}
+
                     jax.debug.print(
                         """
 timestep            = {timestep}
@@ -334,6 +337,7 @@ value loss          = {value_loss}
 actor loss          = {actor_loss}
 entropy             = {entropy}
 fps                 = {fps}
+return dist         = {return_dist}
                         """,
                         timestep=log["timestep"],
                         mean_disc_return=log["mean_disc_return"],
@@ -348,6 +352,7 @@ fps                 = {fps}
                         actor_loss=log["actor_loss"],
                         entropy=log["entropy"],
                         fps=log["fps"],
+                        return_dist=return_dist,
                         ordered=True)
 
                     start_time_debug = time.time()

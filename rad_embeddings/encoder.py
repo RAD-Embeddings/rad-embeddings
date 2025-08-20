@@ -73,13 +73,13 @@ class Encoder(nn.Module):
 
         h = h0
 
-        # mask = graph["n_states"]
+        mask = graph["n_states"]
 
         for _ in range(self.n_msg_stps):
-            h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
-            # _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
-            # h = jnp.where((mask > 0)[:, None], _h, h)
-            # mask -= 1
+            # h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
+            _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
+            h = jnp.where((mask > 0)[:, None], _h, h)
+            mask -= 1
 
         return self.g_embed(h[graph["current_state"]])
 
