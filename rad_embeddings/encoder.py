@@ -12,8 +12,9 @@ class GATv2Conv(nn.Module):
 
     def setup(self):
         self.W_s = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        self.W_t = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        self.W_e = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
+        # self.W_t = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
+        # self.W_e = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
+        self.W_et = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.a = nn.Dense(1, use_bias=False)
 
     # def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
@@ -49,18 +50,22 @@ class GATv2Conv(nn.Module):
         h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
         h_s = jnp.where(mask[:, None, None], h_s, 0)
 
-        h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
-        h_t = jnp.where(mask[:, None, None], h_t, 0)
+        h_et = self.W_et(jnp.concatenate([tgt_features, edge_features], axis=-1)).reshape(-1, self.num_heads, self.out_dim)
+        h_et = jnp.where(mask[:, None, None], h_et, 0)
 
-        h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
-        h_e = jnp.where(mask[:, None, None], h_e, 0)
+        # h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
+        # h_t = jnp.where(mask[:, None, None], h_t, 0)
 
-        logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
+        # h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
+        # h_e = jnp.where(mask[:, None, None], h_e, 0)
+
+        # logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
+        logits = self.a(nn.leaky_relu(h_s + h_et, negative_slope=0.2))
         logits = jnp.where(mask[:, None, None], logits, -jnp.inf)
 
         attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
 
-        msgs = attn * (h_t + h_e)
+        msgs = attn * h_et
 
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
 
