@@ -1,5 +1,6 @@
 import jax
 import time
+import wandb
 import optax
 import distrax
 import numpy as np
@@ -219,6 +220,11 @@ def make_train(config, env, network, batchify):
             train_state = update_state[0]
             metric = traj_batch.info
             rng = update_state[-1]
+
+            if config.get("WANDB"):
+                def callback(info, loss_info):
+                    wandb.log({**info, **loss_info})
+                jax.experimental.io_callback(callback, None, metric, loss_info)
             
             # Debugging mode
             if config.get("DEBUG"):

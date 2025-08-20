@@ -1,5 +1,6 @@
 import os
 import jax
+import wandb
 import jraph
 import distrax
 import argparse
@@ -92,7 +93,20 @@ if __name__ == "__main__":
         default=32,
         help="Dimension of the RAD embeddings"
     )
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        help="Log to wandb"
+    )
     args = parser.parse_args()
+
+    config["WANDB"] = args.wandb
+    if config["WANDB"]:
+        wandb.init(
+            entity="beyazit-y-berkeley-eecs",
+            project="rad-marl-jax",
+            config=config
+        )
 
     rng = jax.random.PRNGKey(args.seed)
 
@@ -114,4 +128,7 @@ if __name__ == "__main__":
     trained_encoder_params = {"params": trained_params["params"]["encoder"]}
     with open(f"{args.save_dir}/trained_encoder_params_{args.seed}.msgpack", "wb") as f:
         f.write(serialization.to_bytes(trained_encoder_params))
+
+    if config["WANDB"]:
+        wandb.finish()
 
