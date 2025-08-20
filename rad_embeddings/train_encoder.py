@@ -71,7 +71,6 @@ if __name__ == "__main__":
         "VF_COEF": 1.0,
         "MAX_GRAD_NORM": 0.5,
         "ANNEAL_LR": False,
-        "DEBUG": True,
     }
 
     parser = argparse.ArgumentParser(description="Train DFA encoder")
@@ -98,9 +97,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Log to wandb"
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print logs"
+    )
     args = parser.parse_args()
 
+    config["DEBUG"] = args.debug
     config["WANDB"] = args.wandb
+
     if config["WANDB"]:
         wandb.init(
             entity="beyazit-y-berkeley-eecs",
