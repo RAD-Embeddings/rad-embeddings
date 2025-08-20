@@ -222,13 +222,28 @@ def make_train(config, env, network, batchify):
             rng = update_state[-1]
 
             if config.get("WANDB"):
+                steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
+                ep_len_buffer = deque(maxlen=steps_per_update)
+                return_buffer = deque(maxlen=steps_per_update)
+                disc_return_buffer = deque(maxlen=steps_per_update)
+                start_time = time.time()
+
                 def callback(info, loss_info):
+                    nonlocal start_time
+
                     total_loss, (value_loss, loss_actor, entropy) = loss_info
-                    info["total_loss"] = total_loss
-                    info["value_loss"] = value_loss
-                    info["loss_actor"] = loss_actor
-                    info["entropy"] = entropy
-                    wandb.log(info)
+
+                    elapsed = time.time() - start_time
+                    fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
+
+                    log = {
+                        "mean_total_loss": np.mean(total_loss),
+                        "mean_value_loss": np.mean(value_loss),
+                        "mean_loss_actor": np.mean(loss_actor),
+                        "mean_loss_actor": np.mean(entropy),
+                        "fps": np.mean(fps),
+                    }
+                    wandb.log(log)
                 jax.experimental.io_callback(callback, None, metric, loss_info)
             
             # Debugging mode
