@@ -132,6 +132,8 @@ if __name__ == "__main__":
     os.makedirs(args.save_dir, exist_ok=True)
     trained_params = out["runner_state"][0].params
     trained_encoder_params = {"params": trained_params["params"]["encoder"]}
+    with open(f"{args.save_dir}/trained_encoder_ac_params_{args.seed}.msgpack", "wb") as f:
+        f.write(serialization.to_bytes(trained_params))
     with open(f"{args.save_dir}/trained_encoder_params_{args.seed}.msgpack", "wb") as f:
         f.write(serialization.to_bytes(trained_encoder_params))
 
