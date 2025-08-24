@@ -111,7 +111,7 @@ class Encoder(nn.Module):
         for _ in range(self.n_msg_stps):
             # h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
             _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
-            _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), graph["edge_index"]).sum(axis=1))
+            # _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), graph["edge_index"]).sum(axis=1))
             h = jnp.where((mask > 0)[:, None], _h, h)
             mask -= 1
 
