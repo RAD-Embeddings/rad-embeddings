@@ -1,4 +1,6 @@
+import os
 import jax
+import wandb
 import jraph
 import distrax
 import argparse
@@ -11,6 +13,7 @@ from dfax import batch2graph
 from wrappers import LogWrapper
 from flax.core import FrozenDict
 from dfa_gym import TokenEnv, DFAWrapper
+import flax.serialization as serialization
 from flax.linen.initializers import constant, orthogonal
 
 
@@ -104,9 +107,9 @@ def _batchify(obss: dict, agents):
 if __name__ == "__main__":
     config = {
         "LR": 2.5e-4,
-        "NUM_ENVS": 16,
+        "NUM_ENVS": 64,
         "NUM_STEPS": 128,
-        "TOTAL_TIMESTEPS": 1e6,
+        "TOTAL_TIMESTEPS": 1e7,
         "UPDATE_EPOCHS": 10,
         "NUM_MINIBATCHES": 4,
         "GAMMA": 0.99,
@@ -144,7 +147,27 @@ if __name__ == "__main__":
         default=True,
         help="Freeze the encoder"
     )
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        help="Log to wandb"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print logs"
+    )
     args = parser.parse_args()
+
+    config["DEBUG"] = args.debug
+    config["WANDB"] = args.wandb
+
+    if config["WANDB"]:
+        wandb.init(
+            entity="beyazit-y-berkeley-eecs",
+            project="rad-marl-jax",
+            config=config
+        )
 
     rng = jax.random.PRNGKey(args.seed)
 
@@ -166,4 +189,12 @@ if __name__ == "__main__":
 
     train_jit = jax.jit(make_train(config, env, network, _batchify))
     out = train_jit(rng)
+
+    os.makedirs(args.save_dir, exist_ok=True)
+    trained_params = out["runner_state"][0].params
+    with open(f"{args.save_dir}/trained_token_env_policy_params_{args.seed}.msgpack", "wb") as f:
+        f.write(serialization.to_bytes(trained_params))
+
+    if config["WANDB"]:
+        wandb.finish()
 
