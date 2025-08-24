@@ -26,7 +26,7 @@ class ActorCritic(nn.Module):
         self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
 
     def safe_l2_norm(self, batch):
-        batch_norm = jax.vmap(lambda x: jnp.array([jnp.max(jnp.array([jnp.linalg.norm(x, ord=2), 1e-8]))]))(batch)
+        batch_norm = jax.vmap(lambda x: jnp.array([jnp.maximum(jnp.linalg.norm(x, ord=2), jnp.float32(1e-8))]))(batch)
         return batch_norm
 
     def __call__(self, batch):
