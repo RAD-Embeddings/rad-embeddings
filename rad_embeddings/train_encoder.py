@@ -62,7 +62,7 @@ if __name__ == "__main__":
         "LR": 1e-3,
         "NUM_ENVS": 16,
         "NUM_STEPS": 512,
-        "TOTAL_TIMESTEPS": 5e6,
+        "TOTAL_TIMESTEPS": 1e6,
         "UPDATE_EPOCHS": 2,
         "NUM_MINIBATCHES": 8,
         "GAMMA": 0.9,
