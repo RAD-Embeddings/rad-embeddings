@@ -30,10 +30,12 @@ class GATv2Conv(nn.Module):
         h_a = self.W_a(
             jnp.concatenate([src_features, edge_features, tgt_features], axis=-1)
         ).reshape(-1, self.num_heads, self.out_dim)
+        h_a = jnp.where(mask[:, None, None], h_a, 0)
 
         h_m = self.W_m(
             jnp.concatenate([edge_features, tgt_features], axis=-1)
         ).reshape(-1, self.num_heads, self.out_dim)
+        h_m = jnp.where(mask[:, None, None], h_m, 0)
 
         # h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
         # h_s = jnp.where(mask[:, None, None], h_s, 0)
