@@ -31,7 +31,7 @@ class ActorCritic(nn.Module):
 
         batch = {
             "node_features": jnp.stack(jnp.array([graph_l["node_features"], graph_r["node_features"]])),
-            # "edge_features": jnp.stack(jnp.array([graph_l["edge_features"], graph_r["edge_features"]])),
+            "edge_features": jnp.stack(jnp.array([graph_l["edge_features"], graph_r["edge_features"]])),
             "edge_index": jnp.stack(jnp.array([graph_l["edge_index"], graph_r["edge_index"]])),
             "current_state": jnp.concatenate(jnp.array([graph_l["current_state"], graph_r["current_state"]])),
             "n_states": jnp.stack(jnp.array([graph_l["n_states"], graph_r["n_states"]]))
@@ -120,8 +120,7 @@ if __name__ == "__main__":
     env = DFABisimEnv()
     env = LogWrapper(env=env, config=config)
 
-    n_msg_stps = env.sampler.max_size*env.sampler.max_size + env.sampler.max_size
-    encoder = Encoder(output_dim=args.rad_dim, n_msg_stps=n_msg_stps)
+    encoder = Encoder(output_dim=args.rad_dim, n_msg_stps=env.sampler.max_size)
 
     network = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
