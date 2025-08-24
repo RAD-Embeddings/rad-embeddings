@@ -64,13 +64,8 @@ class Encoder(nn.Module):
         graph
     ) -> jnp.ndarray:
 
-        node_mask = jnp.any(graph["node_features"] != 0, axis=-1)
         h0 = self.linear_h(graph["node_features"].astype(jnp.float32))
-        h0 = jnp.where(node_mask[:, None], h0, 0)
-
-        edge_mask = jnp.any(graph["edge_features"] != 0, axis=-1)
         e = self.linear_e(graph["edge_features"].astype(jnp.float32))
-        e = jnp.where(edge_mask[:, None], e, 0)
 
         h = h0
 
