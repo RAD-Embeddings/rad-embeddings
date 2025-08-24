@@ -22,10 +22,22 @@ class GATv2Conv(nn.Module):
         src_features = node_features[src]
         tgt_features = node_features[tgt]
 
+        src_nonzero = jnp.any(src_features != 0, axis=-1)
+        tgt_nonzero = jnp.any(tgt_features != 0, axis=-1)
+        mask = jnp.logical_and(src_nonzero, tgt_nonzero)
+
         h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
+        h_s = jnp.where(mask[:, None, None], h_s, 0)
+
         h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
+        h_t = jnp.where(mask[:, None, None], h_t, 0)
 
         logits = self.a(nn.leaky_relu(h_s + h_t, negative_slope=0.2))
+        logits = jnp.where(
+            mask[:, None, None] > 0,
+            logits,
+            -jnp.inf
+        )
         attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
         msgs = attn * h_t
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
@@ -81,6 +93,7 @@ class Encoder(nn.Module):
     ) -> jnp.ndarray:
 
         h0 = self.linear_h(graph["node_features"].astype(jnp.float32))
+        h0 = jnp.where(jnp.any(graph["node_features"] != 0, axis=-1)[:, None], h0, 0)
         # e = self.linear_e(graph["edge_features"].astype(jnp.float32))
 
         h = h0
