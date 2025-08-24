@@ -301,15 +301,15 @@ def make_train(config, env, network, batchify):
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
                     disc_return_buffer_debug.extend(disc_return_values)
 
-                    log["ep_len_min"] = np.min(ep_len_buffer_wandb)
-                    log["ep_len_mean"] = np.mean(ep_len_buffer_wandb)
-                    log["ep_len_max"] = np.max(ep_len_buffer_wandb)
-                    log["ep_len_std"] = np.std(ep_len_buffer_wandb)
+                    log["ep_len_min"] = np.min(ep_len_buffer_debug)
+                    log["ep_len_mean"] = np.mean(ep_len_buffer_debug)
+                    log["ep_len_max"] = np.max(ep_len_buffer_debug)
+                    log["ep_len_std"] = np.std(ep_len_buffer_debug)
 
-                    log["return_min"] = np.min(return_buffer_wandb)
-                    log["return_mean"] = np.mean(return_buffer_wandb)
-                    log["return_max"] = np.max(return_buffer_wandb)
-                    log["return_std"] = np.std(return_buffer_wandb)
+                    log["return_min"] = np.min(return_buffer_debug)
+                    log["return_mean"] = np.mean(return_buffer_debug)
+                    log["return_max"] = np.max(return_buffer_debug)
+                    log["return_std"] = np.std(return_buffer_debug)
 
                     log["disc_return_mean"] = np.mean(disc_return_buffer_debug)
 
