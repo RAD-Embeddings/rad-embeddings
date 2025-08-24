@@ -55,6 +55,7 @@ if __name__ == "__main__":
         init_state = state
         generated_str = []
         done = False
+        print(i)
         while not done:
             pi, value = policy(obs)
 

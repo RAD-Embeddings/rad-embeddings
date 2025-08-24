@@ -14,6 +14,7 @@ from wrappers import LogWrapper
 from flax.core import FrozenDict
 from dfa_gym import TokenEnv, DFAWrapper
 import flax.serialization as serialization
+from dfax.samplers import ReachAvoidSampler
 from flax.linen.initializers import constant, orthogonal
 
 
@@ -171,7 +172,7 @@ if __name__ == "__main__":
 
     rng = jax.random.PRNGKey(args.seed)
 
-    env = DFAWrapper(TokenEnv())
+    env = DFAWrapper(TokenEnv(), sampler=ReachAvoidSampler(max_size=6))
     env = LogWrapper(env=env, config=config)
 
     encoder, encoder_params = Encoder.load_params(
