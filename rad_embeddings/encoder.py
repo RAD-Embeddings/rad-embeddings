@@ -36,7 +36,6 @@ class GATv2Conv(nn.Module):
 
 class Encoder(nn.Module):
     output_dim: int
-    hidden_dim: int = 64
     n_msg_stps: int = 10
     n_heads: int = 4
 
@@ -53,9 +52,10 @@ class Encoder(nn.Module):
         return encoder, encoder_params
 
     def setup(self):
-        self.linear_h = nn.Dense(self.hidden_dim)
-        self.linear_e = nn.Dense(self.hidden_dim)
-        self.gatv2 = GATv2Conv(out_dim=self.hidden_dim, num_heads=self.n_heads)
+        hidden_dim = self.output_dim * 2
+        self.linear_h = nn.Dense(hidden_dim)
+        self.linear_e = nn.Dense(hidden_dim)
+        self.gatv2 = GATv2Conv(out_dim=hidden_dim, num_heads=self.n_heads)
         self.g_embed = nn.Dense(self.output_dim)
 
     def __call__(
