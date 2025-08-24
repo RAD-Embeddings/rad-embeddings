@@ -120,7 +120,8 @@ if __name__ == "__main__":
     env = DFABisimEnv()
     env = LogWrapper(env=env, config=config)
 
-    encoder = Encoder(output_dim=args.rad_dim, n_msg_stps=env.sampler.max_size)
+    n_msg_stps = env.sampler.max_size*env.sampler.max_size + env.sampler.max_size
+    encoder = Encoder(output_dim=args.rad_dim, n_msg_stps=n_msg_stps)
 
     network = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
