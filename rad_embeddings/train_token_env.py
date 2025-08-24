@@ -45,7 +45,6 @@ class ActorCritic(nn.Module):
     action_dim: int
     encoder: nn.Module
     encoder_params: FrozenDict
-    freeze_encoder: bool = True
 
     def setup(self):
         self.cnn = CNN([16, 32, 64])
@@ -69,9 +68,7 @@ class ActorCritic(nn.Module):
 
         graph = batch2graph(graph)
 
-        dfa_feat = jnp.where(self.freeze_encoder,
-            jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, graph)),
-            self.encoder.apply(self.encoder_params, graph))
+        dfa_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, graph))
 
         feat = jnp.concatenate([obs_feat, dfa_feat], axis=-1)
 
@@ -144,12 +141,6 @@ if __name__ == "__main__":
         help="Size of the RAD embeddings"
     )
     parser.add_argument(
-        "--freeze-encoder",
-        type=bool,
-        default=True,
-        help="Freeze the encoder"
-    )
-    parser.add_argument(
         "--wandb",
         action="store_true",
         help="Log to wandb"
@@ -185,8 +176,7 @@ if __name__ == "__main__":
     network = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder,
-        encoder_params=encoder_params,
-        freeze_encoder=args.freeze_encoder
+        encoder_params=encoder_params
     )
 
     if config["DEBUG"]:
@@ -195,6 +185,7 @@ if __name__ == "__main__":
         key, subkey = jax.random.split(key)
         params = network.init(subkey, init_x)
         summarize_params(params)
+        input()
 
     train_jit = jax.jit(make_train(config, env, network, _batchify))
     out = train_jit(key)
