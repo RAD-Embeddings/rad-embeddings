@@ -97,7 +97,9 @@ class Encoder(nn.Module):
 
         h0 = self.linear_h(graph["node_features"].astype(jnp.float32))
         h0 = jnp.where(jnp.any(graph["node_features"] != 0, axis=-1)[:, None], h0, 0)
+
         e = self.linear_e(graph["edge_features"].astype(jnp.float32))
+        e = jnp.where(jnp.any(graph["edge_features"] != 0, axis=-1)[:, None], e, 0)
 
         h = h0
 
