@@ -31,7 +31,7 @@ class ActorCritic(nn.Module):
 
         batch = {
             "node_features": jnp.stack(jnp.array([graph_l["node_features"], graph_r["node_features"]])),
-            "edge_features": jnp.stack(jnp.array([graph_l["edge_features"], graph_r["edge_features"]])),
+            # "edge_features": jnp.stack(jnp.array([graph_l["edge_features"], graph_r["edge_features"]])),
             "edge_index": jnp.stack(jnp.array([graph_l["edge_index"], graph_r["edge_index"]])),
             "current_state": jnp.concatenate(jnp.array([graph_l["current_state"], graph_r["current_state"]])),
             "n_states": jnp.stack(jnp.array([graph_l["n_states"], graph_r["n_states"]]))

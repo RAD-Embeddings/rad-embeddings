@@ -13,10 +13,9 @@ class GATv2Conv(nn.Module):
     def setup(self):
         self.W_s = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.W_t = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        self.W_e = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.a = nn.Dense(1, use_bias=False)
 
-    def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
+    def __call__(self, node_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
         n_nodes = node_features.shape[0]
 
         src, tgt = edge_index
@@ -25,14 +24,31 @@ class GATv2Conv(nn.Module):
 
         h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
         h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
-        h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
 
-        logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
+        logits = self.a(nn.leaky_relu(h_s + h_t, negative_slope=0.2))
         attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
-        msgs = attn * (h_t + h_e)
+        msgs = attn * h_t
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
 
         return h
+
+    # def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
+    #     n_nodes = node_features.shape[0]
+
+    #     src, tgt = edge_index
+    #     src_features = node_features[src]
+    #     tgt_features = node_features[tgt]
+
+    #     h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
+    #     h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
+    #     h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
+
+    #     logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
+    #     attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
+    #     msgs = attn * (h_t + h_e)
+    #     h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
+
+    #     return h
 
 
 class Encoder(nn.Module):
@@ -65,7 +81,7 @@ class Encoder(nn.Module):
     ) -> jnp.ndarray:
 
         h0 = self.linear_h(graph["node_features"].astype(jnp.float32))
-        e = self.linear_e(graph["edge_features"].astype(jnp.float32))
+        # e = self.linear_e(graph["edge_features"].astype(jnp.float32))
 
         h = h0
 
@@ -73,7 +89,8 @@ class Encoder(nn.Module):
 
         for _ in range(self.n_msg_stps):
             # h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
-            _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
+            # _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
+            _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), graph["edge_index"]).sum(axis=1))
             h = jnp.where((mask > 0)[:, None], _h, h)
             mask -= 1
 
