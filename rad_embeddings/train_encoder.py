@@ -22,6 +22,7 @@ class ActorCritic(nn.Module):
 
     def setup(self):
         # self.safe_l2_norm = lambda x: jnp.sqrt(jnp.sum(x ** 2, axis=-1, keepdims=True) + 1e-8)
+        self.safe_l2_norm = lambda x: jnp.sum(x ** 2, axis=-1, keepdims=True)
         # self.safe_l2_norm = lambda x: max(jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True), 1e-8) # https://github.com/jax-ml/jax/issues/3058
         self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
 
@@ -51,7 +52,7 @@ class ActorCritic(nn.Module):
         # feat_r_normalized = feat_r / self.safe_l2_norm(feat_r)
         # value = self.safe_l2_norm(feat_l_normalized - feat_r_normalized)
 
-        value = jnp.linalg.norm(feat_l - feat_r, ord=2, axis=-1, keepdims=True)
+        value = self.safe_l2_norm(feat_l - feat_r, ord=2, axis=-1, keepdims=True)
 
         feat = jnp.concatenate([feat_l, feat_r], axis=-1)
         logits = self.policy_head(feat)
