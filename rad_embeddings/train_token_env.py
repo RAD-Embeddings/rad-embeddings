@@ -185,7 +185,6 @@ if __name__ == "__main__":
         key, subkey = jax.random.split(key)
         params = network.init(subkey, init_x)
         summarize_params(params)
-        input()
 
     train_jit = jax.jit(make_train(config, env, network, _batchify))
     out = train_jit(key)
