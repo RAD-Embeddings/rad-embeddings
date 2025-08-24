@@ -248,15 +248,17 @@ def make_train(config, env, network, batchify):
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
                     disc_return_buffer_wandb.extend(disc_return_values)
 
-                    log["min_ep_len"] = np.min(ep_len_buffer_wandb)
-                    log["mean_ep_len"] = np.mean(ep_len_buffer_wandb)
-                    log["max_ep_len"] = np.max(ep_len_buffer_wandb)
+                    log["ep_len_min"] = np.min(ep_len_buffer_wandb)
+                    log["ep_len_mean"] = np.mean(ep_len_buffer_wandb)
+                    log["ep_len_max"] = np.max(ep_len_buffer_wandb)
+                    log["ep_len_std"] = np.std(ep_len_buffer_wandb)
 
-                    log["min_return"] = np.min(return_buffer_wandb)
-                    log["mean_return"] = np.mean(return_buffer_wandb)
-                    log["max_return"] = np.max(return_buffer_wandb)
+                    log["return_min"] = np.min(return_buffer_wandb)
+                    log["return_mean"] = np.mean(return_buffer_wandb)
+                    log["return_max"] = np.max(return_buffer_wandb)
+                    log["return_std"] = np.std(return_buffer_wandb)
 
-                    log["mean_disc_return"] = np.mean(disc_return_buffer_wandb)
+                    log["disc_return_mean"] = np.mean(disc_return_buffer_wandb)
 
                     total_loss, (value_loss, actor_loss, entropy) = loss_info
 
@@ -299,15 +301,17 @@ def make_train(config, env, network, batchify):
                     disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
                     disc_return_buffer_debug.extend(disc_return_values)
 
-                    log["min_ep_len"] = np.min(ep_len_buffer_debug)
-                    log["mean_ep_len"] = np.mean(ep_len_buffer_debug)
-                    log["max_ep_len"] = np.max(ep_len_buffer_debug)
+                    log["ep_len_min"] = np.min(ep_len_buffer_wandb)
+                    log["ep_len_mean"] = np.mean(ep_len_buffer_wandb)
+                    log["ep_len_max"] = np.max(ep_len_buffer_wandb)
+                    log["ep_len_std"] = np.std(ep_len_buffer_wandb)
 
-                    log["min_return"] = np.min(return_buffer_debug)
-                    log["mean_return"] = np.mean(return_buffer_debug)
-                    log["max_return"] = np.max(return_buffer_debug)
+                    log["return_min"] = np.min(return_buffer_wandb)
+                    log["return_mean"] = np.mean(return_buffer_wandb)
+                    log["return_max"] = np.max(return_buffer_wandb)
+                    log["return_std"] = np.std(return_buffer_wandb)
 
-                    log["mean_disc_return"] = np.mean(disc_return_buffer_debug)
+                    log["disc_return_mean"] = np.mean(disc_return_buffer_debug)
 
                     total_loss, (value_loss, actor_loss, entropy) = loss_info
 
@@ -327,13 +331,15 @@ def make_train(config, env, network, batchify):
                     jax.debug.print(
                         """
 timestep            = {timestep}
-mean disc return    = {mean_disc_return}
-min return          = {min_return}
-mean return         = {mean_return}
-max return          = {max_return}
-min episode length  = {min_ep_len}
-mean episode length = {mean_ep_len}
-max episode length  = {max_ep_len}
+disc_return_mean    = {disc_return_mean}
+return_min          = {return_min}
+return_mean         = {return_mean}
+return_max          = {return_max}
+return_std          = {return_std}
+ep_len_min          = {ep_len_min}
+ep_len_mean         = {ep_len_mean}
+ep_len_max          = {ep_len_max}
+ep_len_std          = {ep_len_std}
 total loss          = {total_loss}
 value loss          = {value_loss}
 actor loss          = {actor_loss}
@@ -342,13 +348,15 @@ fps                 = {fps}
 return dist         = {return_dist}
                         """,
                         timestep=log["timestep"],
-                        mean_disc_return=log["mean_disc_return"],
-                        min_return=log["min_return"],
-                        mean_return=log["mean_return"],
-                        max_return=log["max_return"],
-                        min_ep_len=log["min_ep_len"],
-                        mean_ep_len=log["mean_ep_len"],
-                        max_ep_len=log["max_ep_len"],
+                        disc_return_mean=log["disc_return_mean"],
+                        return_min=log["return_min"],
+                        return_mean=log["return_mean"],
+                        return_max=log["return_max"],
+                        return_std=log["return_std"],
+                        ep_len_min=log["ep_len_min"],
+                        ep_len_mean=log["ep_len_mean"],
+                        ep_len_max=log["ep_len_max"],
+                        ep_len_std=log["ep_len_std"],
                         total_loss=log["total_loss"],
                         value_loss=log["value_loss"],
                         actor_loss=log["actor_loss"],
