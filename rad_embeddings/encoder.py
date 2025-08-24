@@ -30,12 +30,20 @@ class GATv2Conv(nn.Module):
         h_a = self.W_a(
             jnp.concatenate([src_features, edge_features, tgt_features], axis=-1)
         ).reshape(-1, self.num_heads, self.out_dim)
-        h_a = jnp.where(mask[:, None, None], h_a, 0)
+        h_a = jnp.where(
+            mask[:, None, None],
+            h_a,
+            jax.lax.stop_gradient(jnp.zeros_like(h_a))
+        )
 
         h_m = self.W_m(
             jnp.concatenate([edge_features, tgt_features], axis=-1)
         ).reshape(-1, self.num_heads, self.out_dim)
-        h_m = jnp.where(mask[:, None, None], h_m, 0)
+        h_m = jnp.where(
+            mask[:, None, None],
+            h_m,
+            jax.lax.stop_gradient(jnp.zeros_like(h_m))
+        )
 
         # h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
         # h_s = jnp.where(mask[:, None, None], h_s, 0)
@@ -49,7 +57,7 @@ class GATv2Conv(nn.Module):
         # logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
         logits = self.a(nn.leaky_relu(h_a, negative_slope=0.2))
         logits = jnp.where(
-            mask[:, None, None] > 0,
+            mask[:, None, None],
             logits,
             -jnp.inf
         )
@@ -58,7 +66,11 @@ class GATv2Conv(nn.Module):
                                          num_segments=n_nodes)
         dead_nodes = jnp.isneginf(max_per_node[:, 0])
         dead_mask = dead_nodes[src]
-        safe_logits = jnp.where(dead_mask[:, None, None], 0.0, logits)
+        safe_logits = jnp.where(
+            dead_mask[:, None, None],
+            jax.lax.stop_gradient(jnp.zeros_like(logits)),
+            logits
+        )
         attn = jraph.segment_softmax(safe_logits, src, n_nodes)
         msgs = attn * h_m
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
@@ -96,10 +108,18 @@ class Encoder(nn.Module):
     ) -> jnp.ndarray:
 
         h0 = self.linear_h(graph["node_features"].astype(jnp.float32))
-        h0 = jnp.where(jnp.any(graph["node_features"] != 0, axis=-1)[:, None], h0, 0)
+        h0 = jnp.where(
+            jnp.any(graph["node_features"] != 0, axis=-1)[:, None],
+            h0,
+            jax.lax.stop_gradient(jnp.zeros_like(h0))
+        )
 
         e = self.linear_e(graph["edge_features"].astype(jnp.float32))
-        e = jnp.where(jnp.any(graph["edge_features"] != 0, axis=-1)[:, None], e, 0)
+        e = jnp.where(
+            jnp.any(graph["edge_features"] != 0, axis=-1)[:, None],
+            e,
+            jax.lax.stop_gradient(jnp.zeros_like(e))
+        )
 
         h = h0
 
