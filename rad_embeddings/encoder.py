@@ -14,8 +14,8 @@ class GATv2Conv(nn.Module):
         # self.W_s = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         # self.W_t = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         # self.W_e = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        self.W_n = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        self.W_e = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
+        self.W_a = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
+        self.W_m = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.a = nn.Dense(1, use_bias=False)
 
     def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
@@ -27,16 +27,25 @@ class GATv2Conv(nn.Module):
 
         mask = jnp.any(edge_features != 0, axis=-1)
 
-        h_s = self.W_n(src_features).reshape(-1, self.num_heads, self.out_dim)
-        h_s = jnp.where(mask[:, None, None], h_s, 0)
+        h_a = self.W_a(
+            jnp.concatenate([src_features, edge_features, tgt_features], axis=-1)
+        ).reshape(-1, self.num_heads, self.out_dim)
 
-        h_t = self.W_n(tgt_features).reshape(-1, self.num_heads, self.out_dim)
-        h_t = jnp.where(mask[:, None, None], h_t, 0)
+        h_m = self.W_m(
+            jnp.concatenate([edge_features, tgt_features], axis=-1)
+        ).reshape(-1, self.num_heads, self.out_dim)
 
-        h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
-        h_e = jnp.where(mask[:, None, None], h_e, 0)
+        # h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
+        # h_s = jnp.where(mask[:, None, None], h_s, 0)
 
-        logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
+        # h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
+        # h_t = jnp.where(mask[:, None, None], h_t, 0)
+
+        # h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
+        # h_e = jnp.where(mask[:, None, None], h_e, 0)
+
+        # logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
+        logits = self.a(nn.leaky_relu(h_a, negative_slope=0.2))
         logits = jnp.where(
             mask[:, None, None] > 0,
             logits,
@@ -49,7 +58,7 @@ class GATv2Conv(nn.Module):
         dead_mask = dead_nodes[src]
         safe_logits = jnp.where(dead_mask[:, None, None], 0.0, logits)
         attn = jraph.segment_softmax(safe_logits, src, n_nodes)
-        msgs = attn * (h_t + h_e)
+        msgs = attn * h_m
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
 
         return h
