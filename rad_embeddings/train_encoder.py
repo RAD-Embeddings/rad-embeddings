@@ -52,7 +52,7 @@ class ActorCritic(nn.Module):
         feat_r_normalized = feat_r / self.safe_l2_norm(feat_r)
         value = self.safe_l2_norm(feat_l_normalized - feat_r_normalized)
 
-        feat = jnp.concatenate([feat_l, feat_r], axis=-1)
+        feat = jnp.concatenate([feat_l, feat_r, feat_l - feat_r], axis=-1)
         logits = self.policy_head(feat)
 
         pi = distrax.Categorical(logits=logits)
