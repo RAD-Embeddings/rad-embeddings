@@ -21,7 +21,8 @@ class ActorCritic(nn.Module):
     encoder: nn.Module
 
     def setup(self):
-        self.safe_l2_norm = lambda x: jnp.sqrt(jnp.sum(x ** 2, axis=-1, keepdims=True) + 1e-8)
+        # self.safe_l2_norm = lambda x: jnp.sqrt(jnp.sum(x ** 2, axis=-1, keepdims=True) + 1e-8)
+        self.safe_l2_norm = lambda x: max(jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True), 1e-8) # https://github.com/jax-ml/jax/issues/3058
         self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
 
     def __call__(self, batch):
