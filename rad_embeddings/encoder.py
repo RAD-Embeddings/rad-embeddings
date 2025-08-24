@@ -38,7 +38,14 @@ class GATv2Conv(nn.Module):
             logits,
             -jnp.inf
         )
-        attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
+        # attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
+        max_per_node = jraph.segment_max(logits.reshape(logits.shape[0], -1),
+                                         src,
+                                         num_segments=num_segments)
+        dead_nodes = jnp.isneginf(max_per_node[:, 0])
+        dead_mask = dead_nodes[src]
+        safe_logits = jnp.where(dead_mask[:, None, None], 0.0, logits)
+        attn = jraph.segment_softmax(safe_logits, src, num_segments)
         msgs = attn * h_t
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
 
