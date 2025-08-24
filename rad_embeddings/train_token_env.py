@@ -110,7 +110,7 @@ if __name__ == "__main__":
         "LR": 3e-4,
         "NUM_ENVS": 16,
         "NUM_STEPS": 128,
-        "TOTAL_TIMESTEPS": 1e7,
+        "TOTAL_TIMESTEPS": 1e6,
         "UPDATE_EPOCHS": 10,
         "NUM_MINIBATCHES": 8,
         "GAMMA": 0.99,
