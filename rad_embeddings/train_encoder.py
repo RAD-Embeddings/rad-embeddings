@@ -11,6 +11,7 @@ from encoder import Encoder
 from dfax import batch2graph
 from dfa_gym import DFABisimEnv
 from wrappers import LogWrapper
+from utils import summarize_params
 import flax.serialization as serialization
 from flax.linen.initializers import constant, orthogonal
 
@@ -114,7 +115,7 @@ if __name__ == "__main__":
             config=config
         )
 
-    rng = jax.random.PRNGKey(args.seed)
+    key = jax.random.PRNGKey(args.seed)
 
     env = DFABisimEnv()
     env = LogWrapper(env=env, config=config)
@@ -125,9 +126,16 @@ if __name__ == "__main__":
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder
     )
+
+    if config["DEBUG"]:
+        key, subkey = jax.random.split(key)
+        init_x = env.observation_space(env.agents[0]).sample(subkey)
+        key, subkey = jax.random.split(key)
+        params = network.init(subkey, init_x)
+        summarize_params(params)
     
     train_jit = jax.jit(make_train(config, env, network, _batchify))
-    out = train_jit(rng)
+    out = train_jit(key)
 
     os.makedirs(args.save_dir, exist_ok=True)
     trained_params = out["runner_state"][0].params

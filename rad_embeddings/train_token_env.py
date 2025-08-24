@@ -12,6 +12,7 @@ from encoder import Encoder
 from dfax import batch2graph
 from wrappers import LogWrapper
 from flax.core import FrozenDict
+from utils import summarize_params
 from dfa_gym import TokenEnv, DFAWrapper
 import flax.serialization as serialization
 from dfax.samplers import ReachAvoidSampler
@@ -24,7 +25,7 @@ class CNN(nn.Module):
     @nn.compact
     def __call__(self, x):
         for dim in self.dims:
-            x = nn.Conv(dim, (2, 2), strides=(1, 1), kernel_init=orthogonal(np.sqrt(2)))(x)
+            x = nn.Conv(dim, (2, 2), padding="VALID", kernel_init=orthogonal(np.sqrt(2)))(x)
             x = nn.relu(x)
         return x.reshape((x.shape[0], -1))
 
@@ -170,7 +171,7 @@ if __name__ == "__main__":
             config=config
         )
 
-    rng = jax.random.PRNGKey(args.seed)
+    key = jax.random.PRNGKey(args.seed)
 
     env = DFAWrapper(TokenEnv(), sampler=ReachAvoidSampler(max_size=6))
     env = LogWrapper(env=env, config=config)
@@ -188,8 +189,15 @@ if __name__ == "__main__":
         freeze_encoder=args.freeze_encoder
     )
 
+    if config["DEBUG"]:
+        key, subkey = jax.random.split(key)
+        init_x = env.observation_space(env.agents[0]).sample(subkey)
+        key, subkey = jax.random.split(key)
+        params = network.init(subkey, init_x)
+        summarize_params(params)
+
     train_jit = jax.jit(make_train(config, env, network, _batchify))
-    out = train_jit(rng)
+    out = train_jit(key)
 
     os.makedirs(args.save_dir, exist_ok=True)
     trained_params = out["runner_state"][0].params

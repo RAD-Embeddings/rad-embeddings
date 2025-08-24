@@ -12,7 +12,8 @@ class GATv2Conv(nn.Module):
 
     def setup(self):
         self.W_s = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        self.W_et = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
+        self.W_t = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
+        self.W_e = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.a = nn.Dense(1, use_bias=False)
 
     def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
@@ -21,14 +22,14 @@ class GATv2Conv(nn.Module):
         src, tgt = edge_index
         src_features = node_features[src]
         tgt_features = node_features[tgt]
-        edge_tgt_features = jnp.concatenate([tgt_features, edge_features], axis=-1)
 
         h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
-        h_et = self.W_et(edge_tgt_features).reshape(-1, self.num_heads, self.out_dim)
+        h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
+        h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
 
-        logits = self.a(nn.leaky_relu(h_s + h_et, negative_slope=0.2))
+        logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
         attn = jraph.segment_softmax(logits, src, num_segments=n_nodes)
-        msgs = attn * h_et
+        msgs = attn * (h_t + h_e)
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
 
         return h
