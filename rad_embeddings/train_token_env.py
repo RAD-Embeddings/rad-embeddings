@@ -150,6 +150,17 @@ if __name__ == "__main__":
         action="store_true",
         help="Print logs"
     )
+    parser.add_argument(
+        "--n-agents",
+        type=int,
+        default=1,
+        help="Number of agents"
+    )
+    parser.add_argument(
+        "--use-fixed-map",
+        action="store_true",
+        help="Use fixed map in TokenEnv"
+    )
     args = parser.parse_args()
 
     config["DEBUG"] = args.debug
@@ -164,13 +175,19 @@ if __name__ == "__main__":
 
     key = jax.random.PRNGKey(args.seed)
 
-    env = DFAWrapper(TokenEnv(), sampler=ReachAvoidSampler(max_size=6))
+    env = DFAWrapper(
+        TokenEnv(
+            n_agents=args.n_agents,
+            use_fixed_map=args.use_fixed_map
+        ),
+        sampler=ReachAvoidSampler(max_size=6)
+    )
     env = LogWrapper(env=env, config=config)
 
     encoder, encoder_params = Encoder.load_params(
         output_dim=args.rad_dim,
         n_msg_stps=env.sampler.max_size,
-        encoder_dir=f"{args.save_dir}/trained_encoder_params_{args.seed}.msgpack"
+        encoder_dir=f"{args.save_dir}/trained_encoder_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}.msgpack"
     )
 
     network = ActorCritic(
@@ -191,7 +208,7 @@ if __name__ == "__main__":
 
     os.makedirs(args.save_dir, exist_ok=True)
     trained_params = out["runner_state"][0].params
-    with open(f"{args.save_dir}/trained_token_env_policy_params_{args.seed}.msgpack", "wb") as f:
+    with open(f"{args.save_dir}/trained_token_env_policy_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}_n_agents_{args.n_agents}_use_fixed_map_{args.use_fixed_map}.msgpack", "wb") as f:
         f.write(serialization.to_bytes(trained_params))
 
     if config["WANDB"]:
