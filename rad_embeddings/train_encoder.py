@@ -25,7 +25,6 @@ class ActorCritic(nn.Module):
         # self.safe_l2_norm = lambda x: jnp.sum(x ** 2, axis=-1, keepdims=True)
         # self.safe_l2_norm = lambda x: max(jnp.linalg.norm(x, ord=2, axis=-1, keepdims=True), 1e-8) # https://github.com/jax-ml/jax/issues/3058
         self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
-        self.value_head = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
 
     # def safe_l2_norm(self, batch):
     #     batch_norm = jax.vmap(lambda x: jnp.array([jnp.maximum(jnp.linalg.norm(x, ord=2), jnp.float32(1e-8))]))(batch)
@@ -53,10 +52,9 @@ class ActorCritic(nn.Module):
         # feat_r_normalized = feat_r / self.safe_l2_norm(feat_r)
         # value = self.safe_l2_norm(feat_l_normalized - feat_r_normalized)
 
+        value = jnp.linalg.norm(feat_l - feat_r, ord=1, axis=-1, keepdims=True)
 
-        feat = jnp.concatenate([feat_l, feat_r], axis=-1)
-
-        value = self.value_head(feat)
+        feat = jnp.concatenate([feat_l, feat_r, feat_l - feat_r], axis=-1)
         logits = self.policy_head(feat)
 
         pi = distrax.Categorical(logits=logits)
