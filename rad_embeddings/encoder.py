@@ -25,8 +25,6 @@ class GATv2Conv(nn.Module):
         src_features = node_features[src]
         tgt_features = node_features[tgt]
 
-        mask = jnp.any(edge_features != 0, axis=-1)
-
         h_a = self.W_a(
             jnp.concatenate([src_features, edge_features, tgt_features], axis=-1)
         ).reshape(-1, self.num_heads, self.out_dim)
@@ -46,23 +44,22 @@ class GATv2Conv(nn.Module):
 
         # logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
         logits = self.a(nn.leaky_relu(h_a, negative_slope=0.2))
-        # logits = jnp.where(
-        #     mask[:, None, None],
-        #     logits,
-        #     -jnp.inf
-        # )
-        # max_per_node = jraph.segment_max(logits.reshape(logits.shape[0], -1),
-        #                                  src,
-        #                                  num_segments=n_nodes)
-        # dead_nodes = jnp.isneginf(max_per_node[:, 0])
-        # dead_mask = dead_nodes[src]
-        # safe_logits = jnp.where(
-        #     dead_mask[:, None, None],
-        #     jnp.zeros_like(logits),
-        #     logits
-        # )
-        # attn = jraph.segment_softmax(safe_logits, src, n_nodes)
-        attn = jraph.segment_softmax(logits, src, n_nodes)
+        logits = jnp.where(
+            jnp.any(edge_features != 0, axis=-1)[:, None, None],
+            logits,
+            -jnp.inf
+        )
+        max_per_node = jraph.segment_max(logits.reshape(logits.shape[0], -1),
+                                         src,
+                                         num_segments=n_nodes)
+        dead_nodes = jnp.isneginf(max_per_node[:, 0])
+        dead_mask = dead_nodes[src]
+        safe_logits = jnp.where(
+            dead_mask[:, None, None],
+            jnp.zeros_like(logits),
+            logits
+        )
+        attn = jraph.segment_softmax(safe_logits, src, n_nodes)
         msgs = attn * h_m
         h = jraph.segment_sum(msgs, src, num_segments=n_nodes)
 
@@ -88,10 +85,10 @@ class Encoder(nn.Module):
 
     def setup(self):
         hidden_dim = self.output_dim * 2
-        self.linear_h = nn.Dense(hidden_dim)
-        self.linear_e = nn.Dense(hidden_dim)
+        self.linear_h = nn.Dense(hidden_dim, use_bias=False)
+        self.linear_e = nn.Dense(hidden_dim, use_bias=False)
         self.gatv2 = GATv2Conv(out_dim=hidden_dim, num_heads=self.n_heads)
-        self.g_embed = nn.Dense(self.output_dim)
+        self.g_embed = nn.Dense(self.output_dim, use_bias=False)
 
     def __call__(
         self,
