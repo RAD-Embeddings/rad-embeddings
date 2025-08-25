@@ -85,7 +85,8 @@ if __name__ == "__main__":
         init_state = state
         generated_str = []
         done = False
-        print(i)
+        print("Episode", i)
+        step = 0
         while not done:
             keys = jax.random.split(key, env.num_agents + 1)
             key, subkeys =  keys[0], keys[1:]
@@ -94,6 +95,7 @@ if __name__ == "__main__":
             key, subkey = jax.random.split(key)
             obs, state, rewards, dones, infos = env.step(subkey, state, actions)
             done = dones["__all__"]
+            print("Step", step)
             env.render(state)
             _rewards = {agent: rewards[agent].item() for agent in rewards}
             _dones = {agent: dones[agent].item() for agent in dones}
@@ -101,9 +103,6 @@ if __name__ == "__main__":
             print(_dones)
             if any(reward != 0 for reward in _rewards.values()):
                 input()
-            # if done and reward["agent_0"] < 0:
-            #     print("init_state", init_state)
-            #     print("generated_str", generated_str)
-            #     input()
+            step += 1
             
     
