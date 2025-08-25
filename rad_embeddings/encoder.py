@@ -30,20 +30,20 @@ class GATv2Conv(nn.Module):
         h_a = self.W_a(
             jnp.concatenate([src_features, edge_features, tgt_features], axis=-1)
         ).reshape(-1, self.num_heads, self.out_dim)
-        h_a = jnp.where(
-            mask[:, None, None],
-            h_a,
-            jax.lax.stop_gradient(jnp.zeros_like(h_a))
-        )
+        # h_a = jnp.where(
+        #     mask[:, None, None],
+        #     h_a,
+        #     jax.lax.stop_gradient(jnp.zeros_like(h_a))
+        # )
 
         h_m = self.W_m(
             jnp.concatenate([edge_features, tgt_features], axis=-1)
         ).reshape(-1, self.num_heads, self.out_dim)
-        h_m = jnp.where(
-            mask[:, None, None],
-            h_m,
-            jax.lax.stop_gradient(jnp.zeros_like(h_m))
-        )
+        # h_m = jnp.where(
+        #     mask[:, None, None],
+        #     h_m,
+        #     jax.lax.stop_gradient(jnp.zeros_like(h_m))
+        # )
 
         # h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
         # h_s = jnp.where(mask[:, None, None], h_s, 0)
@@ -68,7 +68,7 @@ class GATv2Conv(nn.Module):
         dead_mask = dead_nodes[src]
         safe_logits = jnp.where(
             dead_mask[:, None, None],
-            jax.lax.stop_gradient(jnp.zeros_like(logits)),
+            jnp.zeros_like(logits),
             logits
         )
         attn = jraph.segment_softmax(safe_logits, src, n_nodes)
@@ -108,18 +108,18 @@ class Encoder(nn.Module):
     ) -> jnp.ndarray:
 
         h0 = self.linear_h(graph["node_features"].astype(jnp.float32))
-        h0 = jnp.where(
-            jnp.any(graph["node_features"] != 0, axis=-1)[:, None],
-            h0,
-            jax.lax.stop_gradient(jnp.zeros_like(h0))
-        )
+        # h0 = jnp.where(
+        #     jnp.any(graph["node_features"] != 0, axis=-1)[:, None],
+        #     h0,
+        #     jax.lax.stop_gradient(jnp.zeros_like(h0))
+        # )
 
         e = self.linear_e(graph["edge_features"].astype(jnp.float32))
-        e = jnp.where(
-            jnp.any(graph["edge_features"] != 0, axis=-1)[:, None],
-            e,
-            jax.lax.stop_gradient(jnp.zeros_like(e))
-        )
+        # e = jnp.where(
+        #     jnp.any(graph["edge_features"] != 0, axis=-1)[:, None],
+        #     e,
+        #     jax.lax.stop_gradient(jnp.zeros_like(e))
+        # )
 
         h = h0
         n_states = graph["n_states"]
