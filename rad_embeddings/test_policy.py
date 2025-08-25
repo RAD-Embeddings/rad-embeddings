@@ -1,6 +1,7 @@
 import jax
 import argparse
 from encoder import Encoder
+from utils import summarize_params
 from dfa_gym import TokenEnv, DFAWrapper
 import flax.serialization as serialization
 from dfax.samplers import ReachAvoidSampler
@@ -50,12 +51,12 @@ if __name__ == "__main__":
         ),
         sampler=ReachAvoidSampler(max_size=6)
     )
+
     encoder, encoder_params = Encoder.load_params(
         output_dim=args.rad_dim,
         n_msg_stps=env.sampler.max_size,
         encoder_dir=f"{args.save_dir}/trained_encoder_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}.msgpack"
     )
-
     ac = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder,
@@ -72,7 +73,9 @@ if __name__ == "__main__":
     with open(ac_dir, "rb") as f:
         ac_params = serialization.from_bytes(ac_params, f.read())
 
-    policy = lambda x: ac.apply(ac_params, _batchify(x, env.agents))
+    summarize_params(ac_params)
+
+    policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0].sample(seed=key)
 
     n = 1_000
 
@@ -84,19 +87,20 @@ if __name__ == "__main__":
         done = False
         print(i)
         while not done:
-            pi, value = policy(obs)
-
+            keys = jax.random.split(key, env.num_agents + 1)
+            key, subkeys =  keys[0], keys[1:]
+            actions = policy(obs, subkey)
+            actions = {agent: actions[i] for i, agent in enumerate(env.agents)}
             key, subkey = jax.random.split(key)
-            action = pi.sample(seed=subkey)
-            action = {agent: action[i] for i, agent in enumerate(env.agents)}
-
-            generated_str.append(action["agent_0"])
-
-            key, subkey = jax.random.split(key)
-            obs, state, reward, done, info = env.step(subkey, state, action)
-            done = done["__all__"]
+            obs, state, rewards, dones, infos = env.step(subkey, state, actions)
+            done = dones["__all__"]
             env.render(state)
-            input()
+            _rewards = {agent: rewards[agent].item() for agent in rewards}
+            _dones = {agent: dones[agent].item() for agent in dones}
+            print(_rewards)
+            print(_dones)
+            if any(reward != 0 for reward in _rewards.values()):
+                input()
             # if done and reward["agent_0"] < 0:
             #     print("init_state", init_state)
             #     print("generated_str", generated_str)

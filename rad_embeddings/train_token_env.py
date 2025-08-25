@@ -84,13 +84,23 @@ class ActorCritic(nn.Module):
 
 def _batchify(obss: dict, agents):
 
-    obs = jnp.concatenate([obss[agent]["obs"] for agent in agents])
+    obs = jnp.stack([obss[agent]["obs"] for agent in agents], axis=0)
+    obs = obs if obs.ndim == 4 else jnp.concatenate(obs, axis=0)
 
-    node_features_batch = jnp.concatenate([obss[agent]["graph"]["node_features"] for agent in agents])
-    edge_features_batch = jnp.concatenate([obss[agent]["graph"]["edge_features"] for agent in agents])
-    edge_index_batch = jnp.concatenate([obss[agent]["graph"]["edge_index"] for agent in agents])
-    current_state_batch = jnp.concatenate(jnp.array([obss[agent]["graph"]["current_state"] for agent in agents]))
-    n_states_batch = jnp.concatenate(jnp.array([obss[agent]["graph"]["n_states"] for agent in agents]))
+    node_features_batch = jnp.stack([obss[agent]["graph"]["node_features"] for agent in agents], axis=0)
+    node_features_batch = node_features_batch if node_features_batch.ndim == 3 else jnp.concatenate(node_features_batch, axis=0)
+
+    edge_features_batch = jnp.stack([obss[agent]["graph"]["edge_features"] for agent in agents], axis=0)
+    edge_features_batch = edge_features_batch if edge_features_batch.ndim == 3 else jnp.concatenate(edge_features_batch, axis=0)
+
+    edge_index_batch = jnp.stack([obss[agent]["graph"]["edge_index"] for agent in agents], axis=0)
+    edge_index_batch = edge_index_batch if edge_index_batch.ndim == 3 else jnp.concatenate(edge_index_batch, axis=0)
+
+    current_state_batch = jnp.stack([obss[agent]["graph"]["current_state"] for agent in agents], axis=0)
+    current_state_batch = current_state_batch if current_state_batch.ndim == 2 else jnp.concatenate(current_state_batch, axis=0)
+
+    n_states_batch = jnp.stack(jnp.array([obss[agent]["graph"]["n_states"] for agent in agents]), axis=0)
+    n_states_batch = n_states_batch if n_states_batch.ndim == 2 else jnp.concatenate(n_states_batch, axis=0)
 
     batch = {
         "node_features": node_features_batch,
