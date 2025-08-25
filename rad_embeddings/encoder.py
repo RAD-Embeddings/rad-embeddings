@@ -11,9 +11,6 @@ class GATv2Conv(nn.Module):
     num_heads: int
 
     def setup(self):
-        # self.W_s = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        # self.W_t = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
-        # self.W_e = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.W_a = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.W_m = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.a = nn.Dense(1, use_bias=False)
@@ -33,16 +30,6 @@ class GATv2Conv(nn.Module):
             jnp.concatenate([edge_features, tgt_features], axis=-1)
         ).reshape(-1, self.num_heads, self.out_dim)
 
-        # h_s = self.W_s(src_features).reshape(-1, self.num_heads, self.out_dim)
-        # h_s = jnp.where(mask[:, None, None], h_s, 0)
-
-        # h_t = self.W_t(tgt_features).reshape(-1, self.num_heads, self.out_dim)
-        # h_t = jnp.where(mask[:, None, None], h_t, 0)
-
-        # h_e = self.W_e(edge_features).reshape(-1, self.num_heads, self.out_dim)
-        # h_e = jnp.where(mask[:, None, None], h_e, 0)
-
-        # logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
         logits = self.a(nn.leaky_relu(h_a, negative_slope=0.2))
         logits = jnp.where(
             attn_mask[:, None, None],
