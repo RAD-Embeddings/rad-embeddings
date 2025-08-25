@@ -47,7 +47,7 @@ if __name__ == "__main__":
     env = DFAWrapper(
         TokenEnv(
             n_agents=args.n_agents,
-            use_fixed_map=args.use_fixed_map
+            fixed_map_seed=args.seed if args.use_fixed_map else None
         ),
         sampler=ReachAvoidSampler(max_size=6)
     )
