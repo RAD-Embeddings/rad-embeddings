@@ -41,7 +41,7 @@ if __name__ == "__main__":
     key, subkey = jax.random.split(key)
     ac_params = ac.init(subkey, init_x)
 
-    ac_dir = f"{args.save_dir}/trained_encoder_ac_params_{args.seed}.msgpack"
+    ac_dir = f"{args.save_dir}/trained_encoder_ac_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}.msgpack"
     with open(ac_dir, "rb") as f:
         ac_params = serialization.from_bytes(ac_params, f.read())
 
