@@ -18,7 +18,7 @@ class GATv2Conv(nn.Module):
         self.W_m = nn.Dense(self.num_heads * self.out_dim, use_bias=False)
         self.a = nn.Dense(1, use_bias=False)
 
-    def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray) -> jnp.ndarray:
+    def __call__(self, node_features: jnp.ndarray, edge_features: jnp.ndarray, edge_index: jnp.ndarray, attn_mask: jnp.ndarray) -> jnp.ndarray:
         n_nodes = node_features.shape[0]
 
         src, tgt = edge_index
@@ -45,7 +45,7 @@ class GATv2Conv(nn.Module):
         # logits = self.a(nn.leaky_relu(h_s + h_t + h_e, negative_slope=0.2))
         logits = self.a(nn.leaky_relu(h_a, negative_slope=0.2))
         logits = jnp.where(
-            jnp.any(edge_features != 0, axis=-1)[:, None, None],
+            attn_mask[:, None, None],
             logits,
             -jnp.inf
         )
@@ -97,12 +97,21 @@ class Encoder(nn.Module):
 
         h0 = self.linear_h(graph["node_features"].astype(jnp.float32))
         e = self.linear_e(graph["edge_features"].astype(jnp.float32))
+        edge_index = graph["edge_index"]
+        attn_mask = jnp.any(graph["edge_features"] != 0, axis=-1)
 
         h = h0
         n_states = graph["n_states"]
 
         for i in range(self.n_msg_stps):
-            _h = nn.tanh(self.gatv2(jnp.concatenate([h, h0], axis=-1), e, graph["edge_index"]).sum(axis=1))
+            _h = nn.tanh(
+                self.gatv2(
+                    node_features=jnp.concatenate([h, h0], axis=-1),
+                    edge_features=e,
+                    edge_index=edge_index,
+                    attn_mask=attn_mask
+                ).sum(axis=1)
+            )
             h = jnp.where((i < n_states)[:, None], _h, h)
 
         return self.g_embed(h[graph["current_state"]])
