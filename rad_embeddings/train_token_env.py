@@ -70,9 +70,11 @@ class ActorCritic(nn.Module):
         feat = jnp.concatenate([obs_feat, guarantee_feat], axis=-1)
 
         if "assume" in batch:
+            batch_size, rad_size = guarantee_feat.shape
             assume_batch = batch["assume"]
             assume_graph = batch2graph(assume_batch)
             assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
+            assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
 
             feat = jnp.concatenate([assume_feat, feat], axis=-1)
 
