@@ -78,6 +78,10 @@ class ActorCritic(nn.Module):
 
             feat = jnp.concatenate([assume_feat, feat], axis=-1)
 
+        if "agent_id" in batch:
+            agent_id_batch = batch["assume"]
+            feat = jnp.concatenate([feat, agent_id_batch], axis=-1)
+
         value_hidden = self.value_feat(feat)
         policy_hidden = self.policy_feat(feat)
 
@@ -100,6 +104,11 @@ def _batchify(obss: dict, agents):
     if "assume" in obss[agents[0]]:
         assume_batch = list2batch([obss[agent]["assume"] for agent in agents])
         obs["assume"] = assume_batch
+
+    if "agent_id" in obss[agents[0]]:
+        agent_id_batch = jnp.stack([obss[agent]["agent_id"] for agent in agents], axis=0)
+        agent_id_batch = agent_id_batch if agent_id_batch.ndim == 2 else jnp.concatenate(obs_batch, axis=0)
+        obs["agent_id"] = agent_id_batch
 
     return obs
 
