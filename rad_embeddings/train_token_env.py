@@ -59,7 +59,7 @@ class ActorCritic(nn.Module):
         if obs_batch.ndim == 3: # (C, H, W)
             obs_batch = obs_batch[None, ...] # -> (1, C, H, W)
         elif obs_batch.ndim != 4:
-            raise ValueError(f"Expected (C, H, W) or (B, C, H, W), got {obs_batch.shape}")
+            raise ValueError(f"Expected (C, H, W) or (B, C, H, W), got {obs_batch.shape} for obs")
         obs_batch = jnp.transpose(obs_batch, (0, 2, 3, 1)) # -> (B, H, W, C)
         obs_feat = self.cnn(obs_batch)
 
@@ -80,6 +80,10 @@ class ActorCritic(nn.Module):
 
         if "agent_id" in batch:
             agent_id_batch = batch["agent_id"]
+            if agent_id_batch.ndim == 1: # (N,)
+                agent_id_batch = agent_id_batch[None, ...] # -> (1, N)
+            elif agent_id_batch.ndim != 2:
+                raise ValueError(f"Expected (N,) or (B, N), got {agent_id_batch.shape} for agent_id")
             feat = jnp.concatenate([feat, agent_id_batch], axis=-1)
 
         value_hidden = self.value_feat(feat)
