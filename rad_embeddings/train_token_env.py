@@ -79,7 +79,7 @@ class ActorCritic(nn.Module):
             feat = jnp.concatenate([assume_feat, feat], axis=-1)
 
         if "agent_id" in batch:
-            agent_id_batch = batch["assume"]
+            agent_id_batch = batch["agent_id"]
             feat = jnp.concatenate([feat, agent_id_batch], axis=-1)
 
         value_hidden = self.value_feat(feat)
