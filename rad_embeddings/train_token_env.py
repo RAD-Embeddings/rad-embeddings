@@ -9,7 +9,7 @@ import jax.numpy as jnp
 import flax.linen as nn
 from ppo import make_train
 from encoder import Encoder
-from dfax import batch2graph
+from dfax import list2batch, batch2graph
 from wrappers import LogWrapper
 from flax.core import FrozenDict
 from utils import summarize_params
@@ -54,23 +54,27 @@ class ActorCritic(nn.Module):
         self.policy_net = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
 
     @nn.compact
-    def __call__(self, wrapped_obs):
-        obs = wrapped_obs["obs"]
-        graph = wrapped_obs["graph"]
+    def __call__(self, batch):
+        obs_batch = batch["obs"]
+        if obs_batch.ndim == 3: # (C, H, W)
+            obs_batch = obs_batch[None, ...] # -> (1, C, H, W)
+        elif obs_batch.ndim != 4:
+            raise ValueError(f"Expected (C, H, W) or (B, C, H, W), got {obs_batch.shape}")
+        obs_batch = jnp.transpose(obs_batch, (0, 2, 3, 1)) # -> (B, H, W, C)
+        obs_feat = self.cnn(obs_batch)
 
-        if obs.ndim == 3: # (C, H, W)
-            obs = obs[None, ...] # -> (1, C, H, W)
-        elif obs.ndim != 4:
-            raise ValueError(f"Expected (C, H, W) or (B, C, H, W), got {obs.shape}")
+        guarantee_batch = batch["guarantee"]
+        guarantee_graph = batch2graph(guarantee_batch)
+        guarantee_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, guarantee_graph))
 
-        obs = jnp.transpose(obs, (0, 2, 3, 1)) # -> (B, H, W, C)
-        obs_feat = self.cnn(obs)
+        feat = jnp.concatenate([obs_feat, guarantee_feat], axis=-1)
 
-        graph = batch2graph(graph)
+        if "assume" in batch:
+            assume_batch = batch["assume"]
+            assume_graph = batch2graph(assume_batch)
+            assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
 
-        dfa_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, graph))
-
-        feat = jnp.concatenate([obs_feat, dfa_feat], axis=-1)
+            feat = jnp.concatenate([assume_feat, feat], axis=-1)
 
         value_hidden = self.value_feat(feat)
         policy_hidden = self.policy_feat(feat)
@@ -84,33 +88,18 @@ class ActorCritic(nn.Module):
 
 def _batchify(obss: dict, agents):
 
-    obs = jnp.stack([obss[agent]["obs"] for agent in agents], axis=0)
-    obs = obs if obs.ndim == 4 else jnp.concatenate(obs, axis=0)
+    obs_batch = jnp.stack([obss[agent]["obs"] for agent in agents], axis=0)
+    obs_batch = obs_batch if obs_batch.ndim == 4 else jnp.concatenate(obs_batch, axis=0)
 
-    node_features_batch = jnp.stack([obss[agent]["graph"]["node_features"] for agent in agents], axis=0)
-    node_features_batch = node_features_batch if node_features_batch.ndim == 3 else jnp.concatenate(node_features_batch, axis=0)
+    guarantee_batch = list2batch([obss[agent]["guarantee"] for agent in agents])
 
-    edge_features_batch = jnp.stack([obss[agent]["graph"]["edge_features"] for agent in agents], axis=0)
-    edge_features_batch = edge_features_batch if edge_features_batch.ndim == 3 else jnp.concatenate(edge_features_batch, axis=0)
+    obs = {"obs": obs_batch, "guarantee": guarantee_batch}
 
-    edge_index_batch = jnp.stack([obss[agent]["graph"]["edge_index"] for agent in agents], axis=0)
-    edge_index_batch = edge_index_batch if edge_index_batch.ndim == 3 else jnp.concatenate(edge_index_batch, axis=0)
+    if "assume" in obss[agents[0]]:
+        assume_batch = list2batch([obss[agent]["assume"] for agent in agents])
+        obs["assume"] = assume_batch
 
-    current_state_batch = jnp.stack([obss[agent]["graph"]["current_state"] for agent in agents], axis=0)
-    current_state_batch = current_state_batch if current_state_batch.ndim == 2 else jnp.concatenate(current_state_batch, axis=0)
-
-    n_states_batch = jnp.stack(jnp.array([obss[agent]["graph"]["n_states"] for agent in agents]), axis=0)
-    n_states_batch = n_states_batch if n_states_batch.ndim == 2 else jnp.concatenate(n_states_batch, axis=0)
-
-    batch = {
-        "node_features": node_features_batch,
-        "edge_features": edge_features_batch,
-        "edge_index": edge_index_batch,
-        "current_state": current_state_batch,
-        "n_states": n_states_batch,
-    }
-
-    return {"obs": obs, "graph": batch}
+    return obs
 
 
 if __name__ == "__main__":
