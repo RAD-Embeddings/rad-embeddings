@@ -48,6 +48,7 @@ class ActorCritic(nn.Module):
 
     def setup(self):
         self.cnn = CNN([16, 32, 64])
+        self.linear = nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         self.value_feat = MLP([64, 64])
         self.policy_feat = MLP([64, 64, 64])
         self.value_net = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
@@ -84,7 +85,8 @@ class ActorCritic(nn.Module):
                 agent_id_batch = agent_id_batch[None, ...] # -> (1, N)
             elif agent_id_batch.ndim != 2:
                 raise ValueError(f"Expected (N,) or (B, N), got {agent_id_batch.shape} for agent_id")
-            feat = jnp.concatenate([feat, agent_id_batch], axis=-1)
+            agent_feat = self.linear(agent_id_batch)
+            feat = jnp.concatenate([feat, agent_feat], axis=-1)
 
         value_hidden = self.value_feat(feat)
         policy_hidden = self.policy_feat(feat)
