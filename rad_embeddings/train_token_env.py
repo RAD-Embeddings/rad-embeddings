@@ -25,7 +25,7 @@ class CNN(nn.Module):
     @nn.compact
     def __call__(self, x):
         for dim in self.dims:
-            x = nn.Conv(dim, (2, 2), padding="VALID", kernel_init=orthogonal(np.sqrt(2)))(x)
+            x = nn.Conv(dim, (3, 3), padding="CIRCULAR", kernel_init=orthogonal(np.sqrt(2)))(x)
             x = nn.relu(x)
         return x.reshape((x.shape[0], -1))
 
@@ -122,9 +122,9 @@ def _batchify(obss: dict, agents):
 if __name__ == "__main__":
     config = {
         "LR": 3e-4,
-        "NUM_ENVS": 16,
-        "NUM_STEPS": 128,
-        "TOTAL_TIMESTEPS": 1e6,
+        "NUM_ENVS": 64,
+        "NUM_STEPS": 512,
+        "TOTAL_TIMESTEPS": 1e7,
         "UPDATE_EPOCHS": 10,
         "NUM_MINIBATCHES": 8,
         "GAMMA": 0.99,
@@ -134,7 +134,6 @@ if __name__ == "__main__":
         "VF_COEF": 0.5,
         "MAX_GRAD_NORM": 0.5,
         "ANNEAL_LR": False,
-        "DEBUG": True,
     }
 
     parser = argparse.ArgumentParser(description="Train DFA encoder")
@@ -177,6 +176,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Use fixed map in TokenEnv"
     )
+    parser.add_argument(
+        "--n-token-repeat",
+        type=int,
+        default=1,
+        help="Number of token repeats in TokenEnv"
+    )
     args = parser.parse_args()
 
     config["DEBUG"] = args.debug
@@ -194,7 +199,8 @@ if __name__ == "__main__":
     env = DFAWrapper(
         TokenEnv(
             n_agents=args.n_agents,
-            fixed_map_seed=args.seed if args.use_fixed_map else None
+            fixed_map_seed=args.seed if args.use_fixed_map else None,
+            n_token_repeat=args.n_token_repeat
         ),
         sampler=ReachAvoidSampler(max_size=6)
     )

@@ -96,12 +96,13 @@ if __name__ == "__main__":
             obs, state, rewards, dones, infos = env.step(subkey, state, actions)
             done = dones["__all__"]
             print("Step", step)
+            print("actions", actions)
             env.render(state)
             _rewards = {agent: rewards[agent].item() for agent in rewards}
             _dones = {agent: dones[agent].item() for agent in dones}
             print(_rewards)
             print(_dones)
-            if any(reward != 0 for reward in _rewards.values()):
+            if any(rewards[agent] <= 0 and dones[agent] for agent in env.agents):
                 input()
             step += 1
             
