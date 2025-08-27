@@ -15,7 +15,7 @@ from flax.core import FrozenDict
 from utils import summarize_params
 from dfa_gym import TokenEnv, DFAWrapper
 import flax.serialization as serialization
-from dfax.samplers import ReachAvoidSampler
+from dfax.samplers import ReachAvoidSampler, ConflictSampler
 from flax.linen.initializers import constant, orthogonal
 
 
@@ -202,7 +202,7 @@ if __name__ == "__main__":
             fixed_map_seed=args.seed if args.use_fixed_map else None,
             n_token_repeat=args.n_token_repeat
         ),
-        sampler=ReachAvoidSampler(max_size=6)
+        sampler=ConflictSampler(max_size=6, n_agents=args.n_agents)
     )
     env = LogWrapper(env=env, config=config)
 
