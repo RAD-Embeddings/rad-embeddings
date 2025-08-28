@@ -21,11 +21,15 @@ from flax.linen.initializers import constant, orthogonal
 
 class CNN(nn.Module):
     dims: list[int]
+    is_circular: bool
 
     @nn.compact
     def __call__(self, x):
         for dim in self.dims:
-            x = nn.Conv(dim, (3, 3), padding="CIRCULAR", kernel_init=orthogonal(np.sqrt(2)))(x)
+            if self.is_circular:
+                x = nn.Conv(dim, (3, 3), padding="CIRCULAR", kernel_init=orthogonal(np.sqrt(2)))(x)
+            else:
+                x = nn.Conv(dim, (3, 3), padding="SAME", kernel_init=orthogonal(np.sqrt(2)))(x)
             x = nn.relu(x)
         return x.reshape((x.shape[0], -1))
 
@@ -45,9 +49,10 @@ class ActorCritic(nn.Module):
     action_dim: int
     encoder: nn.Module
     encoder_params: FrozenDict
+    is_circular: bool
 
     def setup(self):
-        self.cnn = CNN([16, 32, 64])
+        self.cnn = CNN([16, 32, 64], self.is_circular)
         self.linear = nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         self.value_feat = MLP([64, 64])
         self.policy_feat = MLP([64, 64, 64])
@@ -182,6 +187,16 @@ if __name__ == "__main__":
         default=1,
         help="Number of token repeats in TokenEnv"
     )
+    parser.add_argument(
+        "--is-circular",
+        action="store_true",
+        help="Use circular map in TokenEnv"
+    )
+    parser.add_argument(
+        "--is-walled",
+        action="store_true",
+        help="Use walled map in TokenEnv"
+    )
     args = parser.parse_args()
 
     config["DEBUG"] = args.debug
@@ -200,7 +215,9 @@ if __name__ == "__main__":
         TokenEnv(
             n_agents=args.n_agents,
             fixed_map_seed=args.seed if args.use_fixed_map else None,
-            n_token_repeat=args.n_token_repeat
+            n_token_repeat=args.n_token_repeat,
+            is_circular=args.is_circular,
+            is_walled=args.is_walled
         ),
         sampler=ConflictSampler(max_size=6, n_agents=args.n_agents)
     )
@@ -215,7 +232,8 @@ if __name__ == "__main__":
     network = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder,
-        encoder_params=encoder_params
+        encoder_params=encoder_params,
+        is_circular=args.is_circular
     )
 
     if config["DEBUG"]:
