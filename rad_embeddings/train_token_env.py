@@ -188,12 +188,12 @@ if __name__ == "__main__":
         help="Number of token repeats in TokenEnv"
     )
     parser.add_argument(
-        "--is-circular",
+        "--circular",
         action="store_true",
         help="Use circular map in TokenEnv"
     )
     parser.add_argument(
-        "--is-walled",
+        "--walled",
         action="store_true",
         help="Use walled map in TokenEnv"
     )
@@ -216,8 +216,8 @@ if __name__ == "__main__":
             n_agents=args.n_agents,
             fixed_map_seed=args.seed if args.use_fixed_map else None,
             n_token_repeat=args.n_token_repeat,
-            is_circular=args.is_circular,
-            is_walled=args.is_walled
+            is_circular=args.circular,
+            is_walled=args.walled
         ),
         sampler=ConflictSampler(max_size=6, n_agents=args.n_agents)
     )
@@ -233,7 +233,7 @@ if __name__ == "__main__":
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder,
         encoder_params=encoder_params,
-        is_circular=args.is_circular
+        is_circular=args.circular
     )
 
     if config["DEBUG"]:
