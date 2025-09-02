@@ -89,7 +89,7 @@ class ActorCritic(nn.Module):
                 assume_graph = batch2graph(assume_batch)
                 assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
                 assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
-                task_feat = jnp.concatenate([task_feat, assume_feat], axis=-1)
+                task_feat = jnp.concatenate([task_feat, assume_feat, guarantee_feat - assume_feat], axis=-1)
 
             if "agent_id" in batch:
                 agent_id_batch = batch["agent_id"]
