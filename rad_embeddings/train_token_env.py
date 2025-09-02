@@ -27,16 +27,16 @@ class ActorCritic(nn.Module):
     no_assume: bool
 
     def setup(self):
-        padding = "CIRCULAR" if self.is_circular else "SAME"
+        padding = "CIRCULAR" if self.is_circular else "VALID"
         self.cnn = nn.Sequential([
-            nn.Conv(16, (3, 3), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.Conv(16, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
             nn.relu,
-            nn.Conv(32, (3, 3), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.Conv(32, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
             nn.relu,
-            nn.Conv(64, (3, 3), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.Conv(64, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
             nn.relu,
             lambda x: x.reshape((x.shape[0], -1)),
-            nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+            # nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])
         self.agent_feat = nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         self.value_net = nn.Sequential([
@@ -218,18 +218,18 @@ if __name__ == "__main__":
     # )
 
     layout = """
-        [ 8 ][   ][   ][   ][   ][   ][   ][ # ][ 0 ][   ][   ][ 1 ]
-        [   ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][   ]
-        [   ][   ][ b ][   ][   ][   ][   ][ # ][   ][   ][   ][   ]
-        [   ][   ][   ][   ][   ][   ][   ][ # ][ 3 ][   ][   ][ 2 ]
-        [   ][   ][   ][   ][   ][   ][   ][ # ][ # ][ # ][#,a][ # ]
-        [ A ][   ][   ][   ][   ][   ][   ][   ][   ][   ][   ][   ]
-        [ B ][   ][   ][   ][   ][   ][   ][   ][   ][   ][   ][   ]
-        [   ][   ][   ][   ][   ][   ][   ][ # ][ # ][ # ][#,b][ # ]
-        [   ][   ][   ][   ][   ][   ][   ][ # ][ 4 ][   ][   ][ 5 ]
-        [   ][   ][ a ][   ][   ][   ][   ][ # ][   ][   ][   ][   ]
-        [   ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][   ]
-        [ 9 ][   ][   ][   ][   ][   ][   ][ # ][ 7 ][   ][   ][ 6 ]
+        [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
+        [ # ][ 8 ][   ][   ][   ][   ][   ][ # ][ 0 ][   ][ 1 ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][ # ]
+        [ # ][   ][ b ][   ][   ][   ][   ][ # ][ 3 ][   ][ 2 ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][ # ][#,a][ # ][ # ]
+        [ # ][ A ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
+        [ # ][ B ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][ # ][#,b][ # ][ # ]
+        [ # ][   ][ a ][   ][   ][   ][   ][ # ][ 4 ][   ][ 5 ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][ # ]
+        [ # ][ 9 ][   ][   ][   ][   ][   ][ # ][ 7 ][   ][ 6 ][ # ]
+        [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
     """
 
     token_env = TokenEnv(layout=layout)
