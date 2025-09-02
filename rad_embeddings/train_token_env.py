@@ -55,6 +55,7 @@ class ActorCritic(nn.Module):
             nn.relu,
             nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
         ])
+        self.task_feat = nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
 
     @nn.compact
     def __call__(self, batch):
@@ -70,9 +71,11 @@ class ActorCritic(nn.Module):
         guarantee_graph = batch2graph(guarantee_batch)
         guarantee_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, guarantee_graph))
 
-        feat = jnp.concatenate([obs_feat, guarantee_feat], axis=-1)
+        task_feat = guarantee_feat
 
         if not self.no_assume:
+
+            task_feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
 
             if "assume" in batch:
                 batch_size, rad_size = guarantee_feat.shape
@@ -80,7 +83,7 @@ class ActorCritic(nn.Module):
                 assume_graph = batch2graph(assume_batch)
                 assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
                 assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
-                feat = jnp.concatenate([assume_feat, feat], axis=-1)
+                task_feat = jnp.concatenate([task_feat, assume_feat], axis=-1)
 
             if "agent_id" in batch:
                 agent_id_batch = batch["agent_id"]
@@ -89,7 +92,11 @@ class ActorCritic(nn.Module):
                 elif agent_id_batch.ndim != 2:
                     raise ValueError(f"Expected (N,) or (B, N), got {agent_id_batch.shape} for agent_id")
                 agent_feat = self.agent_feat(agent_id_batch)
-                feat = jnp.concatenate([feat, agent_feat], axis=-1)
+                task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
+
+            task_feat = self.task_feat(task_feat)
+
+        feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
 
         value = self.value_net(feat)
         logits = self.policy_net(feat)
