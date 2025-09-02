@@ -25,6 +25,7 @@ class ActorCritic(nn.Module):
     encoder_params: FrozenDict
     is_circular: bool
     no_assume: bool
+    n_agents: int
 
     def setup(self):
         padding = "CIRCULAR" if self.is_circular else "VALID"
@@ -38,7 +39,7 @@ class ActorCritic(nn.Module):
             lambda x: x.reshape((x.shape[0], -1)),
             # nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])
-        self.agent_feat = nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+        self.agent_feat = nn.Embed(self.n_agents, 32)
         self.value_net = nn.Sequential([
             nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
             nn.relu,
@@ -93,10 +94,10 @@ class ActorCritic(nn.Module):
 
             if "agent_id" in batch:
                 agent_id_batch = batch["agent_id"]
-                if agent_id_batch.ndim == 1: # (N,)
-                    agent_id_batch = agent_id_batch[None, ...] # -> (1, N)
-                elif agent_id_batch.ndim != 2:
-                    raise ValueError(f"Expected (N,) or (B, N), got {agent_id_batch.shape} for agent_id")
+                if agent_id_batch.ndim == 0:
+                    agent_id_batch = agent_id_batch[None, ...] # -> (1,)
+                elif agent_id_batch.ndim != 1:
+                    raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
                 agent_feat = self.agent_feat(agent_id_batch)
                 task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
 
@@ -264,7 +265,8 @@ if __name__ == "__main__":
         encoder=encoder,
         encoder_params=encoder_params,
         is_circular=args.circular,
-        no_assume=args.no_assume
+        no_assume=args.no_assume,
+        n_agents=env.num_agents
     )
 
     if config["DEBUG"]:
