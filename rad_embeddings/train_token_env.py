@@ -135,12 +135,12 @@ def _batchify(obss: dict, agents):
 if __name__ == "__main__":
     config = {
         "LR": 3e-4,
-        "NUM_ENVS": 16,
-        "NUM_STEPS": 128,
-        "TOTAL_TIMESTEPS": 1e6,
-        "UPDATE_EPOCHS": 4,
+        "NUM_ENVS": 64,
+        "NUM_STEPS": 512,
+        "TOTAL_TIMESTEPS": 1e7,
+        "UPDATE_EPOCHS": 10,
         "NUM_MINIBATCHES": 8,
-        "GAMMA": 0.94,
+        "GAMMA": 0.99,
         "GAE_LAMBDA": 0.95,
         "CLIP_EPS": 0.2,
         "ENT_COEF": 0.01,
