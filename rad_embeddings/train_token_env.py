@@ -130,7 +130,7 @@ if __name__ == "__main__":
         "GAMMA": 0.99,
         "GAE_LAMBDA": 0.95,
         "CLIP_EPS": 0.2,
-        "ENT_COEF": 0.0,
+        "ENT_COEF": 0.01,
         "VF_COEF": 0.5,
         "MAX_GRAD_NORM": 0.5,
         "ANNEAL_LR": False,
@@ -188,11 +188,6 @@ if __name__ == "__main__":
         help="Use circular map in TokenEnv"
     )
     parser.add_argument(
-        "--walled",
-        action="store_true",
-        help="Use walled map in TokenEnv"
-    )
-    parser.add_argument(
         "--no-assume",
         action="store_true",
         help="Don't pass assume part to the polcy"
@@ -216,8 +211,7 @@ if __name__ == "__main__":
     #         n_agents=args.n_agents,
     #         fixed_map_seed=args.seed if args.use_fixed_map else None,
     #         n_token_repeat=args.n_token_repeat,
-    #         is_circular=args.circular,
-    #         is_walled=args.walled
+    #         is_circular=args.circular
     #     ),
     #     sampler=ReachAvoidSampler(max_size=6)
     #     # sampler=ConflictSampler(max_size=6, n_agents=args.n_agents)
