@@ -35,6 +35,7 @@ class ActorCritic(nn.Module):
             nn.relu,
             nn.Conv(64, (3, 3), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
             nn.relu,
+            lambda x: x.reshape((x.shape[0], -1)),
             nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])
         self.agent_feat = nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
