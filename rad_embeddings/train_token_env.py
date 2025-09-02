@@ -27,9 +27,9 @@ class CNN(nn.Module):
     def __call__(self, x):
         for dim in self.dims:
             if self.is_circular:
-                x = nn.Conv(dim, (3, 3), padding="CIRCULAR", kernel_init=orthogonal(np.sqrt(2)))(x)
+                x = nn.Conv(dim, (2, 2), padding="CIRCULAR", kernel_init=orthogonal(np.sqrt(2)))(x)
             else:
-                x = nn.Conv(dim, (3, 3), padding="SAME", kernel_init=orthogonal(np.sqrt(2)))(x)
+                x = nn.Conv(dim, (2, 2), padding="SAME", kernel_init=orthogonal(np.sqrt(2)))(x)
             x = nn.relu(x)
         return x.reshape((x.shape[0], -1))
 
@@ -50,6 +50,7 @@ class ActorCritic(nn.Module):
     encoder: nn.Module
     encoder_params: FrozenDict
     is_circular: bool
+    no_assume: bool
 
     def setup(self):
         self.cnn = CNN([16, 32, 64], self.is_circular)
@@ -75,23 +76,25 @@ class ActorCritic(nn.Module):
 
         feat = jnp.concatenate([obs_feat, guarantee_feat], axis=-1)
 
-        if "assume" in batch:
-            batch_size, rad_size = guarantee_feat.shape
-            assume_batch = batch["assume"]
-            assume_graph = batch2graph(assume_batch)
-            assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
-            assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
+        if not self.no_assume:
 
-            feat = jnp.concatenate([assume_feat, feat], axis=-1)
+            if "assume" in batch:
+                batch_size, rad_size = guarantee_feat.shape
+                assume_batch = batch["assume"]
+                assume_graph = batch2graph(assume_batch)
+                assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
+                assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
 
-        if "agent_id" in batch:
-            agent_id_batch = batch["agent_id"]
-            if agent_id_batch.ndim == 1: # (N,)
-                agent_id_batch = agent_id_batch[None, ...] # -> (1, N)
-            elif agent_id_batch.ndim != 2:
-                raise ValueError(f"Expected (N,) or (B, N), got {agent_id_batch.shape} for agent_id")
-            agent_feat = self.linear(agent_id_batch)
-            feat = jnp.concatenate([feat, agent_feat], axis=-1)
+                feat = jnp.concatenate([assume_feat, feat], axis=-1)
+
+            if "agent_id" in batch:
+                agent_id_batch = batch["agent_id"]
+                if agent_id_batch.ndim == 1: # (N,)
+                    agent_id_batch = agent_id_batch[None, ...] # -> (1, N)
+                elif agent_id_batch.ndim != 2:
+                    raise ValueError(f"Expected (N,) or (B, N), got {agent_id_batch.shape} for agent_id")
+                agent_feat = self.linear(agent_id_batch)
+                feat = jnp.concatenate([feat, agent_feat], axis=-1)
 
         value_hidden = self.value_feat(feat)
         policy_hidden = self.policy_feat(feat)
@@ -197,6 +200,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Use walled map in TokenEnv"
     )
+    parser.add_argument(
+        "--no-assume",
+        action="store_true",
+        help="Don't pass assume part to the polcy"
+    )
     args = parser.parse_args()
 
     config["DEBUG"] = args.debug
@@ -256,7 +264,8 @@ if __name__ == "__main__":
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder,
         encoder_params=encoder_params,
-        is_circular=args.circular
+        is_circular=args.circular,
+        no_assume=args.no_assume
     )
 
     if config["DEBUG"]:
