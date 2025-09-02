@@ -127,7 +127,7 @@ def _batchify(obss: dict, agents):
 
     if "agent_id" in obss[agents[0]]:
         agent_id_batch = jnp.stack([obss[agent]["agent_id"] for agent in agents], axis=0)
-        agent_id_batch = agent_id_batch if agent_id_batch.ndim == 2 else jnp.concatenate(agent_id_batch, axis=0)
+        agent_id_batch = agent_id_batch if agent_id_batch.ndim == 1 else jnp.concatenate(agent_id_batch, axis=0)
         obs["agent_id"] = agent_id_batch
 
     return obs
