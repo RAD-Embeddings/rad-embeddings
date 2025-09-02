@@ -19,32 +19,6 @@ from dfax.samplers import ReachSampler, ReachAvoidSampler, ConflictSampler
 from flax.linen.initializers import constant, orthogonal
 
 
-class CNN(nn.Module):
-    dims: list[int]
-    is_circular: bool
-
-    @nn.compact
-    def __call__(self, x):
-        for dim in self.dims:
-            if self.is_circular:
-                x = nn.Conv(dim, (2, 2), padding="CIRCULAR", kernel_init=orthogonal(np.sqrt(2)))(x)
-            else:
-                x = nn.Conv(dim, (2, 2), padding="SAME", kernel_init=orthogonal(np.sqrt(2)))(x)
-            x = nn.relu(x)
-        return x.reshape((x.shape[0], -1))
-
-
-class MLP(nn.Module):
-    dims: list[int]
-
-    @nn.compact
-    def __call__(self, x):
-        for dim in self.dims:
-            x = nn.Dense(dim, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))(x)
-            x = nn.relu(x)
-        return x
-
-
 class ActorCritic(nn.Module):
     action_dim: int
     encoder: nn.Module
@@ -53,12 +27,33 @@ class ActorCritic(nn.Module):
     no_assume: bool
 
     def setup(self):
-        self.cnn = CNN([16, 32, 64], self.is_circular)
-        self.linear = nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
-        self.value_feat = MLP([64, 64])
-        self.policy_feat = MLP([64, 64, 64])
-        self.value_net = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
-        self.policy_net = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
+        padding = "CIRCULAR" if self.is_circular else "SAME"
+        self.cnn = nn.Sequential([
+            nn.Conv(16, (3, 3), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.relu,
+            nn.Conv(32, (3, 3), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.relu,
+            nn.Conv(64, (3, 3), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.relu,
+            nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+        ])
+        self.agent_feat = nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+        self.value_net = nn.Sequential([
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
+        ])
+        self.policy_net = nn.Sequential([
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
+        ])
 
     @nn.compact
     def __call__(self, batch):
@@ -84,7 +79,6 @@ class ActorCritic(nn.Module):
                 assume_graph = batch2graph(assume_batch)
                 assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
                 assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
-
                 feat = jnp.concatenate([assume_feat, feat], axis=-1)
 
             if "agent_id" in batch:
@@ -93,14 +87,11 @@ class ActorCritic(nn.Module):
                     agent_id_batch = agent_id_batch[None, ...] # -> (1, N)
                 elif agent_id_batch.ndim != 2:
                     raise ValueError(f"Expected (N,) or (B, N), got {agent_id_batch.shape} for agent_id")
-                agent_feat = self.linear(agent_id_batch)
+                agent_feat = self.agent_feat(agent_id_batch)
                 feat = jnp.concatenate([feat, agent_feat], axis=-1)
 
-        value_hidden = self.value_feat(feat)
-        policy_hidden = self.policy_feat(feat)
-
-        value = self.value_net(value_hidden)
-        logits = self.policy_net(policy_hidden)
+        value = self.value_net(feat)
+        logits = self.policy_net(feat)
 
         pi = distrax.Categorical(logits=logits)
         return pi, jnp.squeeze(value, axis=-1)
