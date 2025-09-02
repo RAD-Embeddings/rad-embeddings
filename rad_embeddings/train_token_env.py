@@ -211,15 +211,38 @@ if __name__ == "__main__":
 
     key = jax.random.PRNGKey(args.seed)
 
+    # env = DFAWrapper(
+    #     TokenEnv(
+    #         n_agents=args.n_agents,
+    #         fixed_map_seed=args.seed if args.use_fixed_map else None,
+    #         n_token_repeat=args.n_token_repeat,
+    #         is_circular=args.circular,
+    #         is_walled=args.walled
+    #     ),
+    #     sampler=ReachAvoidSampler(max_size=6)
+    #     # sampler=ConflictSampler(max_size=6, n_agents=args.n_agents)
+    # )
+
+    layout = """
+        [ 8 ][   ][   ][   ][   ][   ][   ][ # ][ 0 ][   ][   ][ 1 ]
+        [   ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][   ]
+        [   ][   ][ b ][   ][   ][   ][   ][ # ][   ][   ][   ][   ]
+        [   ][   ][   ][   ][   ][   ][   ][ # ][ 3 ][   ][   ][ 2 ]
+        [   ][   ][   ][   ][   ][   ][   ][ # ][ # ][ # ][#,a][ # ]
+        [ A ][   ][   ][   ][   ][   ][   ][   ][   ][   ][   ][   ]
+        [ B ][   ][   ][   ][   ][   ][   ][   ][   ][   ][   ][   ]
+        [   ][   ][   ][   ][   ][   ][   ][ # ][ # ][ # ][#,b][ # ]
+        [   ][   ][   ][   ][   ][   ][   ][ # ][ 4 ][   ][   ][ 5 ]
+        [   ][   ][ a ][   ][   ][   ][   ][ # ][   ][   ][   ][   ]
+        [   ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][   ]
+        [ 9 ][   ][   ][   ][   ][   ][   ][ # ][ 7 ][   ][   ][ 6 ]
+    """
+
+    token_env = TokenEnv(layout=layout)
+
     env = DFAWrapper(
-        TokenEnv(
-            n_agents=args.n_agents,
-            fixed_map_seed=args.seed if args.use_fixed_map else None,
-            n_token_repeat=args.n_token_repeat,
-            is_circular=args.circular,
-            is_walled=args.walled
-        ),
-        sampler=ConflictSampler(max_size=6, n_agents=args.n_agents)
+        env=token_env,
+        sampler=ReachAvoidSampler(max_size=6, n_tokens=token_env.n_tokens)
     )
     env = LogWrapper(env=env, config=config)
 
