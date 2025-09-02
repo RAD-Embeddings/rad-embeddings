@@ -4,7 +4,7 @@ from encoder import Encoder
 from utils import summarize_params
 from dfa_gym import TokenEnv, DFAWrapper
 import flax.serialization as serialization
-from dfax.samplers import ReachAvoidSampler
+from dfax.samplers import ReachSampler, ReachAvoidSampler, ConflictSampler
 from train_token_env import ActorCritic, _batchify
 
 
@@ -40,16 +40,48 @@ if __name__ == "__main__":
         action="store_true",
         help="Use fixed map in TokenEnv"
     )
+    parser.add_argument(
+        "--circular",
+        action="store_true",
+        help="Use circular map in TokenEnv"
+    )
+    parser.add_argument(
+        "--no-assume",
+        action="store_true",
+        help="Don't pass assume part to the polcy"
+    )
     args = parser.parse_args()
 
     key = jax.random.PRNGKey(args.seed)
 
+    # env = DFAWrapper(
+    #     TokenEnv(
+    #         n_agents=args.n_agents,
+    #         fixed_map_seed=args.seed if args.use_fixed_map else None
+    #     ),
+    #     sampler=ReachAvoidSampler(max_size=6)
+    # )
+
+    layout = """
+        [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
+        [ # ][ 8 ][   ][   ][   ][   ][   ][ # ][ 0 ][   ][ 1 ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][ # ]
+        [ # ][   ][ b ][   ][   ][   ][   ][ # ][ 3 ][   ][ 2 ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][ # ][#,a][ # ][ # ]
+        [ # ][ A ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
+        [ # ][ B ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][ # ][#,b][ # ][ # ]
+        [ # ][   ][ a ][   ][   ][   ][   ][ # ][ 4 ][   ][ 5 ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][ # ]
+        [ # ][ 9 ][   ][   ][   ][   ][   ][ # ][ 7 ][   ][ 6 ][ # ]
+        [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
+    """
+
+    token_env = TokenEnv(layout=layout)
+
     env = DFAWrapper(
-        TokenEnv(
-            n_agents=args.n_agents,
-            fixed_map_seed=args.seed if args.use_fixed_map else None
-        ),
-        sampler=ReachAvoidSampler(max_size=6)
+        env=token_env,
+        sampler=ReachSampler(max_size=4, prob_stutter=1.0, n_tokens=token_env.n_tokens)
     )
 
     encoder, encoder_params = Encoder.load_params(
@@ -60,7 +92,10 @@ if __name__ == "__main__":
     ac = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder,
-        encoder_params=encoder_params
+        encoder_params=encoder_params,
+        is_circular=args.circular,
+        no_assume=args.no_assume,
+        n_agents=env.num_agents
     )
 
     key, subkey = jax.random.split(key)
@@ -83,6 +118,7 @@ if __name__ == "__main__":
         key, subkey = jax.random.split(key)
         obs, state = env.reset(subkey)
         init_state = state
+        env.render(state)
         generated_str = []
         done = False
         print("Episode", i)
@@ -102,8 +138,8 @@ if __name__ == "__main__":
             _dones = {agent: dones[agent].item() for agent in dones}
             print(_rewards)
             print(_dones)
-            if any(rewards[agent] <= 0 and dones[agent] for agent in env.agents):
-                input()
+            # if any(rewards[agent] <= 0 and dones[agent] for agent in env.agents):
+            input()
             step += 1
             
     
