@@ -239,7 +239,10 @@ if __name__ == "__main__":
         [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
     """
 
-    token_env = TokenEnv(layout=layout)
+    token_env = TokenEnv(
+        layout=layout,
+        max_steps_in_episode=500
+    )
 
     env = DFAWrapper(
         env=token_env,
