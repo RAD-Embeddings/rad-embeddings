@@ -52,7 +52,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    key = jax.random.PRNGKey(args.seed)
+    key = jax.random.PRNGKey(10)
 
     # env = DFAWrapper(
     #     TokenEnv(
