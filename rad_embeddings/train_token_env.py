@@ -39,6 +39,16 @@ class ActorCritic(nn.Module):
             lambda x: x.reshape((x.shape[0], -1)),
             # nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])
+        self.task_cnn = nn.Sequential([
+            nn.Conv(16, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.relu,
+            nn.Conv(32, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.relu,
+            nn.Conv(64, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.relu,
+            lambda x: x.reshape((x.shape[0], -1)),
+            # nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+        ])
         self.agent_feat = nn.Embed(self.n_agents, 32)
         self.value_net = nn.Sequential([
             nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
@@ -82,7 +92,7 @@ class ActorCritic(nn.Module):
 
         if not self.no_assume:
 
-            task_feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
+            task_feat = jnp.concatenate([self.task_cnn(obs_batch), task_feat], axis=-1)
 
             if "assume" in batch:
                 batch_size, rad_size = guarantee_feat.shape
