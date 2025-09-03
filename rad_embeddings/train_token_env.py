@@ -117,9 +117,13 @@ class ActorCritic(nn.Module):
 
             cooperate_dist = distrax.Categorical(logits=cooperate_logits)
 
-            cooperate_choice = cooperate_dist.mode() == 0
+            # cooperate_choice = cooperate_dist.mode() == 0
+            # task_feat = jnp.where(cooperate_choice[:, None], guarantee_feat, env_task_feat)
 
-            task_feat = jnp.where(cooperate_choice[:, None], guarantee_feat, env_task_feat)
+            choice = jax.nn.one_hot(cooperate_dist.mode(), 2)
+            probs = jax.nn.softmax(cooperate_logits, axis=-1)
+            choice = choice + probs - jax.lax.stop_gradient(probs)  # STE trick
+            task_feat = choice[..., 0:1] * guarantee_feat + choice[..., 1:2] * env_task_feat
 
         # if not self.no_assume:
 
