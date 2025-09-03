@@ -129,10 +129,17 @@ class ActorCritic(nn.Module):
             # cooperate_choice = cooperate_dist.mode() == 0
             # task_feat = jnp.where(cooperate_choice[:, None], guarantee_feat, env_task_feat)
 
+            mask = (jnp.max(guarantee_batch["n_states"], axis=-1, keepdims=True) == 1)
+
             choice = jax.nn.one_hot(cooperate_dist.mode(), 2)
             probs = jax.nn.softmax(cooperate_logits, axis=-1)
-            choice = choice + probs - jax.lax.stop_gradient(probs)  # STE trick
-            task_feat = choice[..., 0:1] * guarantee_feat + choice[..., 1:2] * env_task_feat
+            ste_choice = choice + probs - jax.lax.stop_gradient(probs)  # STE trick
+            # task_feat = ste_choice[..., 0:1] * guarantee_feat + ste_choice[..., 1:2] * env_task_feat
+
+            final_choice = ste_choice * (1 - mask) + jnp.array([0.0, 1.0]) * mask
+
+            task_feat = final_choice[..., 0:1] * guarantee_feat + final_choice[..., 1:2] * env_task_feat
+
 
         # if not self.no_assume:
 
