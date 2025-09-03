@@ -98,21 +98,19 @@ class ActorCritic(nn.Module):
             agent_feat = self.agent_feat(agent_id_batch)
 
             env_task_feat = nn.Sequential([
-                nn.Dense(512, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.relu,
                 nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
                 nn.relu,
                 nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
                 nn.relu,
-                nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+                nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+                nn.relu,
+                nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
             ])(jnp.concatenate([obs_feat, assume_feat], axis=-1))
 
             flag = nn.Sequential([
-                nn.Dense(512, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.relu,
                 nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
                 nn.relu,
-                nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+                nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
                 nn.relu,
                 nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
             ])(jnp.concatenate([obs_feat, guarantee_feat, assume_feat, guarantee_feat - assume_feat, agent_feat], axis=-1))
