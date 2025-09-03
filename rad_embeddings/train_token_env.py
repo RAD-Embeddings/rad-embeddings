@@ -274,7 +274,8 @@ if __name__ == "__main__":
 
     env = DFAWrapper(
         env=token_env,
-        sampler=ReachSampler(max_size=4, prob_stutter=1.0, n_tokens=token_env.n_tokens)
+        sampler=ReachSampler(max_size=4, prob_stutter=1.0, n_tokens=token_env.n_tokens),
+        max_eoe_reward=1
     )
     env = LogWrapper(env=env, config=config)
 
