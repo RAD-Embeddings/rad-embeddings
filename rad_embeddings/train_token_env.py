@@ -76,7 +76,7 @@ class ActorCritic(nn.Module):
 
     @nn.compact
     def __call__(self, batch):
-        obs_batch = batch["obs"]
+        obs_batch = batch["obs"]["obs"]
         if obs_batch.ndim == 3: # (C, H, W)
             obs_batch = obs_batch[None, ...] # -> (1, C, H, W)
         elif obs_batch.ndim != 4:
@@ -89,57 +89,6 @@ class ActorCritic(nn.Module):
         guarantee_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, guarantee_graph))
 
         task_feat = guarantee_feat
-
-        # if not self.no_assume:
-        #     batch_size, rad_size = guarantee_feat.shape
-        #     assume_batch = batch["assume"]
-        #     assume_graph = batch2graph(assume_batch)
-        #     assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
-        #     assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
-
-        #     agent_id_batch = batch["agent_id"]
-        #     if agent_id_batch.ndim == 0:
-        #         agent_id_batch = agent_id_batch[None, ...] # -> (1,)
-        #     elif agent_id_batch.ndim != 1:
-        #         raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
-        #     agent_feat = self.agent_feat(agent_id_batch)
-
-        #     env_task_feat = nn.Sequential([
-        #         nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-        #         nn.relu,
-        #         nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-        #         nn.relu,
-        #         nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-        #         nn.relu,
-        #         nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
-        #     ])(jnp.concatenate([obs_feat, assume_feat, agent_feat], axis=-1))
-
-        #     cooperate_logits = nn.Sequential([
-        #         nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-        #         nn.relu,
-        #         nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-        #         nn.relu,
-        #         nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-        #         nn.relu,
-        #         nn.Dense(2, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
-        #     ])(jnp.concatenate([obs_feat, guarantee_feat, assume_feat, BilinearFusion(out_dim=32)(guarantee_feat, assume_feat), agent_feat], axis=-1))
-
-        #     cooperate_dist = distrax.Categorical(logits=cooperate_logits)
-
-        #     # cooperate_choice = cooperate_dist.mode() == 0
-        #     # task_feat = jnp.where(cooperate_choice[:, None], guarantee_feat, env_task_feat)
-
-        #     mask = (jnp.max(guarantee_batch["n_states"], axis=-1, keepdims=True) == 1)
-
-        #     choice = jax.nn.one_hot(cooperate_dist.mode(), 2)
-        #     probs = jax.nn.softmax(cooperate_logits, axis=-1)
-        #     ste_choice = choice + probs - jax.lax.stop_gradient(probs)  # STE trick
-        #     # task_feat = ste_choice[..., 0:1] * guarantee_feat + ste_choice[..., 1:2] * env_task_feat
-
-        #     final_choice = ste_choice * (1 - mask) + jnp.array([0.0, 1.0]) * mask
-
-        #     task_feat = final_choice[..., 0:1] * guarantee_feat + final_choice[..., 1:2] * env_task_feat
-
 
         if not self.no_assume:
 
@@ -162,6 +111,13 @@ class ActorCritic(nn.Module):
                 agent_feat = self.agent_feat(agent_id_batch)
                 task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
 
+            help_batch = batch["obs"]["help"]
+            if help_batch.ndim == 1:
+                help_batch = help_batch[None, :]
+            help_feat = nn.Dense(32)(help_batch)
+
+            task_feat = jnp.concatenate([task_feat, help_feat], axis=-1)
+
             task_feat = self.task_feat(task_feat)
 
         feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
@@ -179,12 +135,15 @@ class ActorCritic(nn.Module):
 
 def _batchify(obss: dict, agents):
 
-    obs_batch = jnp.stack([obss[agent]["obs"] for agent in agents], axis=0)
+    obs_batch = jnp.stack([obss[agent]["obs"]["obs"] for agent in agents], axis=0)
     obs_batch = obs_batch if obs_batch.ndim == 4 else jnp.concatenate(obs_batch, axis=0)
+
+    help_batch = jnp.stack([obss[agent]["obs"]["help"] for agent in agents], axis=0)
+    help_batch = help_batch if help_batch.ndim == 2 else jnp.concatenate(help_batch, axis=0)
 
     guarantee_batch = list2batch([obss[agent]["guarantee"] for agent in agents])
 
-    obs = {"obs": obs_batch, "guarantee": guarantee_batch}
+    obs = {"obs": {"obs": obs_batch, "help": help_batch}, "guarantee": guarantee_batch}
 
     if "assume" in obss[agents[0]]:
         assume_batch = list2batch([obss[agent]["assume"] for agent in agents])
