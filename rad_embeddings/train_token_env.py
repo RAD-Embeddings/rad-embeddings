@@ -90,79 +90,79 @@ class ActorCritic(nn.Module):
 
         task_feat = guarantee_feat
 
-        if not self.no_assume:
-            batch_size, rad_size = guarantee_feat.shape
-            assume_batch = batch["assume"]
-            assume_graph = batch2graph(assume_batch)
-            assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
-            assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
-
-            agent_id_batch = batch["agent_id"]
-            if agent_id_batch.ndim == 0:
-                agent_id_batch = agent_id_batch[None, ...] # -> (1,)
-            elif agent_id_batch.ndim != 1:
-                raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
-            agent_feat = self.agent_feat(agent_id_batch)
-
-            env_task_feat = nn.Sequential([
-                nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.relu,
-                nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.relu,
-                nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.relu,
-                nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
-            ])(jnp.concatenate([obs_feat, assume_feat, agent_feat], axis=-1))
-
-            cooperate_logits = nn.Sequential([
-                nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.relu,
-                nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.relu,
-                nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.relu,
-                nn.Dense(2, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
-            ])(jnp.concatenate([obs_feat, guarantee_feat, assume_feat, BilinearFusion(out_dim=32)(guarantee_feat, assume_feat), agent_feat], axis=-1))
-
-            cooperate_dist = distrax.Categorical(logits=cooperate_logits)
-
-            # cooperate_choice = cooperate_dist.mode() == 0
-            # task_feat = jnp.where(cooperate_choice[:, None], guarantee_feat, env_task_feat)
-
-            mask = (jnp.max(guarantee_batch["n_states"], axis=-1, keepdims=True) == 1)
-
-            choice = jax.nn.one_hot(cooperate_dist.mode(), 2)
-            probs = jax.nn.softmax(cooperate_logits, axis=-1)
-            ste_choice = choice + probs - jax.lax.stop_gradient(probs)  # STE trick
-            # task_feat = ste_choice[..., 0:1] * guarantee_feat + ste_choice[..., 1:2] * env_task_feat
-
-            final_choice = ste_choice * (1 - mask) + jnp.array([0.0, 1.0]) * mask
-
-            task_feat = final_choice[..., 0:1] * guarantee_feat + final_choice[..., 1:2] * env_task_feat
-
-
         # if not self.no_assume:
+        #     batch_size, rad_size = guarantee_feat.shape
+        #     assume_batch = batch["assume"]
+        #     assume_graph = batch2graph(assume_batch)
+        #     assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
+        #     assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
 
-        #     task_feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
+        #     agent_id_batch = batch["agent_id"]
+        #     if agent_id_batch.ndim == 0:
+        #         agent_id_batch = agent_id_batch[None, ...] # -> (1,)
+        #     elif agent_id_batch.ndim != 1:
+        #         raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
+        #     agent_feat = self.agent_feat(agent_id_batch)
 
-        #     if "assume" in batch:
-        #         batch_size, rad_size = guarantee_feat.shape
-        #         assume_batch = batch["assume"]
-        #         assume_graph = batch2graph(assume_batch)
-        #         assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
-        #         assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
-        #         task_feat = jnp.concatenate([task_feat, assume_feat], axis=-1)
+        #     env_task_feat = nn.Sequential([
+        #         nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+        #         nn.relu,
+        #         nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+        #         nn.relu,
+        #         nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+        #         nn.relu,
+        #         nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+        #     ])(jnp.concatenate([obs_feat, assume_feat, agent_feat], axis=-1))
 
-        #     if "agent_id" in batch:
-        #         agent_id_batch = batch["agent_id"]
-        #         if agent_id_batch.ndim == 0:
-        #             agent_id_batch = agent_id_batch[None, ...] # -> (1,)
-        #         elif agent_id_batch.ndim != 1:
-        #             raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
-        #         agent_feat = self.agent_feat(agent_id_batch)
-        #         task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
+        #     cooperate_logits = nn.Sequential([
+        #         nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+        #         nn.relu,
+        #         nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+        #         nn.relu,
+        #         nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+        #         nn.relu,
+        #         nn.Dense(2, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+        #     ])(jnp.concatenate([obs_feat, guarantee_feat, assume_feat, BilinearFusion(out_dim=32)(guarantee_feat, assume_feat), agent_feat], axis=-1))
 
-        #     task_feat = self.task_feat(task_feat)
+        #     cooperate_dist = distrax.Categorical(logits=cooperate_logits)
+
+        #     # cooperate_choice = cooperate_dist.mode() == 0
+        #     # task_feat = jnp.where(cooperate_choice[:, None], guarantee_feat, env_task_feat)
+
+        #     mask = (jnp.max(guarantee_batch["n_states"], axis=-1, keepdims=True) == 1)
+
+        #     choice = jax.nn.one_hot(cooperate_dist.mode(), 2)
+        #     probs = jax.nn.softmax(cooperate_logits, axis=-1)
+        #     ste_choice = choice + probs - jax.lax.stop_gradient(probs)  # STE trick
+        #     # task_feat = ste_choice[..., 0:1] * guarantee_feat + ste_choice[..., 1:2] * env_task_feat
+
+        #     final_choice = ste_choice * (1 - mask) + jnp.array([0.0, 1.0]) * mask
+
+        #     task_feat = final_choice[..., 0:1] * guarantee_feat + final_choice[..., 1:2] * env_task_feat
+
+
+        if not self.no_assume:
+
+            task_feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
+
+            if "assume" in batch:
+                batch_size, rad_size = guarantee_feat.shape
+                assume_batch = batch["assume"]
+                assume_graph = batch2graph(assume_batch)
+                assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
+                assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
+                task_feat = jnp.concatenate([task_feat, assume_feat, BilinearFusion(out_dim=32)(guarantee_feat, assume_feat)], axis=-1)
+
+            if "agent_id" in batch:
+                agent_id_batch = batch["agent_id"]
+                if agent_id_batch.ndim == 0:
+                    agent_id_batch = agent_id_batch[None, ...] # -> (1,)
+                elif agent_id_batch.ndim != 1:
+                    raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
+                agent_feat = self.agent_feat(agent_id_batch)
+                task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
+
+            task_feat = self.task_feat(task_feat)
 
         feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
 
