@@ -119,7 +119,7 @@ class ActorCritic(nn.Module):
 
             cooperate_choice = cooperate_dist.mode() == 0
 
-            task_feat = jnp.where(cooperate_choice[None, :], guarantee_feat, env_task_feat)
+            task_feat = jnp.where(cooperate_choice[:, None], guarantee_feat, env_task_feat)
 
         # if not self.no_assume:
 
