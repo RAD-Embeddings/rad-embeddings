@@ -141,7 +141,7 @@ if __name__ == "__main__":
         "NUM_ENVS": 64,
         "NUM_STEPS": 512,
         "TOTAL_TIMESTEPS": 1e7,
-        "UPDATE_EPOCHS": 10,
+        "UPDATE_EPOCHS": 20,
         "NUM_MINIBATCHES": 8,
         "GAMMA": 0.99,
         "GAE_LAMBDA": 0.95,
