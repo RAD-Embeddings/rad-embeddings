@@ -58,9 +58,9 @@ class ActorCritic(nn.Module):
         ])
         self.task_feat = nn.Sequential([
             nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.tanh,
+            nn.relu,
             nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.tanh,
+            nn.relu,
             nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])
 
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         "LR": 3e-4,
         "NUM_ENVS": 64,
         "NUM_STEPS": 512,
-        "TOTAL_TIMESTEPS": 1e7,
+        "TOTAL_TIMESTEPS": 1e8,
         "UPDATE_EPOCHS": 10,
         "NUM_MINIBATCHES": 8,
         "GAMMA": 0.99,
