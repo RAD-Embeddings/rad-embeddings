@@ -52,7 +52,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    key = jax.random.PRNGKey(10)
+    key = jax.random.PRNGKey(16)
 
     # env = DFAWrapper(
     #     TokenEnv(
@@ -64,20 +64,20 @@ if __name__ == "__main__":
 
     layout = """
         [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
-        [ # ][ 8 ][   ][   ][   ][   ][   ][ # ][ 0 ][   ][ 1 ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][ # ]
-        [ # ][   ][ b ][   ][   ][   ][   ][ # ][ 3 ][   ][ 2 ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][ # ][ # ][#,a][ # ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][ 0 ][   ][ 1 ][ # ]
+        [ # ][   ][   ][ b ][ b ][ b ][   ][ # ][   ][ 4 ][   ][ # ]
+        [ # ][   ][   ][ b ][ b ][ b ][   ][ # ][ 3 ][   ][ 2 ][ # ]
+        [ # ][   ][   ][ b ][ b ][ b ][   ][ # ][ # ][#,a][ # ][ # ]
         [ # ][ A ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
         [ # ][ B ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][ # ][ # ][#,b][ # ][ # ]
-        [ # ][   ][ a ][   ][   ][   ][   ][ # ][ 4 ][   ][ 5 ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][ # ][   ][   ][   ][ # ]
-        [ # ][ 9 ][   ][   ][   ][   ][   ][ # ][ 7 ][   ][ 6 ][ # ]
+        [ # ][   ][   ][ a ][ a ][ a ][   ][ # ][ # ][#,b][ # ][ # ]
+        [ # ][   ][   ][ a ][ a ][ a ][   ][ # ][ 5 ][   ][ 6 ][ # ]
+        [ # ][   ][   ][ a ][ a ][ a ][   ][ # ][   ][ 9 ][   ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][ # ][ 8 ][   ][ 7 ][ # ]
         [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
     """
 
-    token_env = TokenEnv(layout=layout)
+    token_env = TokenEnv(layout=layout, max_steps_in_episode=200)
 
     env = DFAWrapper(
         env=token_env,
@@ -95,7 +95,8 @@ if __name__ == "__main__":
         encoder_params=encoder_params,
         is_circular=args.circular,
         no_assume=args.no_assume,
-        n_agents=env.num_agents
+        n_agents=env.num_agents,
+        deterministic=True
     )
 
     key, subkey = jax.random.split(key)
@@ -110,7 +111,8 @@ if __name__ == "__main__":
 
     summarize_params(ac_params)
 
-    policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0].sample(seed=key)
+    # policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0].sample(seed=key)
+    policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0]
 
     n = 1_000
 

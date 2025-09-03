@@ -26,6 +26,7 @@ class ActorCritic(nn.Module):
     is_circular: bool
     no_assume: bool
     n_agents: int
+    deterministic: bool = False
 
     def setup(self):
         padding = "CIRCULAR" if self.is_circular else "VALID"
@@ -108,8 +109,12 @@ class ActorCritic(nn.Module):
         value = self.value_net(feat)
         logits = self.policy_net(feat)
 
-        pi = distrax.Categorical(logits=logits)
-        return pi, jnp.squeeze(value, axis=-1)
+        if self.deterministic:
+            action = jnp.argmax(logits, axis=-1)
+            return action, jnp.squeeze(value, axis=-1)
+        else:
+            pi = distrax.Categorical(logits=logits)
+            return pi, jnp.squeeze(value, axis=-1)
 
 
 def _batchify(obss: dict, agents):
