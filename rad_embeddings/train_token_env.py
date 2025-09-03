@@ -19,6 +19,15 @@ from dfax.samplers import ReachSampler, ReachAvoidSampler, ConflictSampler
 from flax.linen.initializers import constant, orthogonal
 
 
+class BilinearFusion(nn.Module):
+    out_dim: int
+
+    @nn.compact
+    def __call__(self, x, y):
+        d_x, d_y = x.shape[-1], y.shape[-1]
+        W = self.param("W", nn.initializers.lecun_normal(), (d_x, d_y, self.out_dim))
+        return jnp.einsum("bi,ijk,bj->bk", x, W, y)
+
 class ActorCritic(nn.Module):
     action_dim: int
     encoder: nn.Module
@@ -113,7 +122,7 @@ class ActorCritic(nn.Module):
                 nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
                 nn.relu,
                 nn.Dense(2, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
-            ])(jnp.concatenate([obs_feat, guarantee_feat, assume_feat, guarantee_feat - assume_feat, assume_feat - guarantee_feat, agent_feat], axis=-1))
+            ])(jnp.concatenate([obs_feat, guarantee_feat, assume_feat, BilinearFusion(out_dim=32)(guarantee_feat, assume_feat), agent_feat], axis=-1))
 
             cooperate_dist = distrax.Categorical(logits=cooperate_logits)
 
