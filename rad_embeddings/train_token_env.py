@@ -81,57 +81,27 @@ class ActorCritic(nn.Module):
         task_feat = guarantee_feat
 
         if not self.no_assume:
-            batch_size, rad_size = guarantee_feat.shape
-            assume_batch = batch["assume"]
-            assume_graph = batch2graph(assume_batch)
-            assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
-            assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
 
-            agent_id_batch = batch["agent_id"]
-            if agent_id_batch.ndim == 0:
-                agent_id_batch = agent_id_batch[None, ...] # -> (1,)
-            elif agent_id_batch.ndim != 1:
-                raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
-            agent_feat = self.agent_feat(agent_id_batch)
+            task_feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
 
-            env_task_feat = nn.Sequential([
-                nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.tanh,
-                nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.tanh,
-                nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
-            ])(jnp.concatenate([obs_feat, assume_feat, agent_feat], axis=-1))
+            if "assume" in batch:
+                batch_size, rad_size = guarantee_feat.shape
+                assume_batch = batch["assume"]
+                assume_graph = batch2graph(assume_batch)
+                assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
+                assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
+                task_feat = jnp.concatenate([task_feat, assume_feat], axis=-1)
 
-            task_feat = nn.Sequential([
-                nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.tanh,
-                nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-                nn.tanh,
-                nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
-            ])(jnp.concatenate([obs_feat, guarantee_feat, env_task_feat, agent_feat], axis=-1))
+            if "agent_id" in batch:
+                agent_id_batch = batch["agent_id"]
+                if agent_id_batch.ndim == 0:
+                    agent_id_batch = agent_id_batch[None, ...] # -> (1,)
+                elif agent_id_batch.ndim != 1:
+                    raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
+                agent_feat = self.agent_feat(agent_id_batch)
+                task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
 
-        # if not self.no_assume:
-
-        #     task_feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
-
-        #     if "assume" in batch:
-        #         batch_size, rad_size = guarantee_feat.shape
-        #         assume_batch = batch["assume"]
-        #         assume_graph = batch2graph(assume_batch)
-        #         assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
-        #         assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
-        #         task_feat = jnp.concatenate([task_feat, assume_feat], axis=-1)
-
-        #     if "agent_id" in batch:
-        #         agent_id_batch = batch["agent_id"]
-        #         if agent_id_batch.ndim == 0:
-        #             agent_id_batch = agent_id_batch[None, ...] # -> (1,)
-        #         elif agent_id_batch.ndim != 1:
-        #             raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
-        #         agent_feat = self.agent_feat(agent_id_batch)
-        #         task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
-
-        #     task_feat = self.task_feat(task_feat)
+            task_feat = self.task_feat(task_feat)
 
         feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
 
