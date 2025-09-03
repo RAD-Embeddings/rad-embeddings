@@ -41,24 +41,22 @@ class ActorCritic(nn.Module):
         ])
         self.agent_feat = nn.Embed(self.n_agents, 32)
         self.value_net = nn.Sequential([
-            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
             nn.relu,
-            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
             nn.relu,
             nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
         ])
         self.policy_net = nn.Sequential([
-            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
             nn.relu,
-            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
             nn.relu,
-            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
             nn.relu,
             nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
         ])
         self.task_feat = nn.Sequential([
-            nn.Dense(512, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.relu,
             nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
             nn.relu,
             nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
