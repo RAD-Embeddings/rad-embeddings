@@ -76,7 +76,7 @@ class ActorCritic(nn.Module):
 
     @nn.compact
     def __call__(self, batch):
-        obs_batch = batch["obs"]["obs"]
+        obs_batch = batch["obs"]
         if obs_batch.ndim == 3: # (C, H, W)
             obs_batch = obs_batch[None, ...] # -> (1, C, H, W)
         elif obs_batch.ndim != 4:
@@ -111,12 +111,6 @@ class ActorCritic(nn.Module):
                 agent_feat = self.agent_feat(agent_id_batch)
                 task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
 
-            help_batch = batch["obs"]["help"]
-            if help_batch.ndim == 1:
-                help_batch = help_batch[None, :]
-            help_feat = nn.Dense(32)(help_batch)
-            task_feat = jnp.concatenate([task_feat, help_feat], axis=-1)
-
             task_feat = self.task_feat(task_feat)
 
         feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
@@ -134,15 +128,12 @@ class ActorCritic(nn.Module):
 
 def _batchify(obss: dict, agents):
 
-    obs_batch = jnp.stack([obss[agent]["obs"]["obs"] for agent in agents], axis=0)
+    obs_batch = jnp.stack([obss[agent]["obs"] for agent in agents], axis=0)
     obs_batch = obs_batch if obs_batch.ndim == 4 else jnp.concatenate(obs_batch, axis=0)
-
-    help_batch = jnp.stack([obss[agent]["obs"]["help"] for agent in agents], axis=0)
-    help_batch = help_batch if help_batch.ndim == 2 else jnp.concatenate(help_batch, axis=0)
 
     guarantee_batch = list2batch([obss[agent]["guarantee"] for agent in agents])
 
-    obs = {"obs": {"obs": obs_batch, "help": help_batch}, "guarantee": guarantee_batch}
+    obs = {"obs": obs_batch, "guarantee": guarantee_batch}
 
     if "assume" in obss[agents[0]]:
         assume_batch = list2batch([obss[agent]["assume"] for agent in agents])
