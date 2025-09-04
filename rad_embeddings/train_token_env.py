@@ -67,11 +67,15 @@ class ActorCritic(nn.Module):
             nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
         ])
         self.task_feat = nn.Sequential([
+            nn.Dense(512, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
             nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
             nn.relu,
             nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
             nn.relu,
-            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])
 
     @nn.compact
