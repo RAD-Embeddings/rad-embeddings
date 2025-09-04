@@ -158,10 +158,10 @@ def _batchify(obss: dict, agents):
 
 if __name__ == "__main__":
     config = {
-        "LR": 3e-4,
+        "LR": 5e-5,
         "NUM_ENVS": 64,
         "NUM_STEPS": 512,
-        "TOTAL_TIMESTEPS": 1e7,
+        "TOTAL_TIMESTEPS": 1e8,
         "UPDATE_EPOCHS": 10,
         "NUM_MINIBATCHES": 8,
         "GAMMA": 0.99,
@@ -170,7 +170,7 @@ if __name__ == "__main__":
         "ENT_COEF": 0.01,
         "VF_COEF": 0.5,
         "MAX_GRAD_NORM": 0.5,
-        "ANNEAL_LR": False,
+        "ANNEAL_LR": True,
     }
 
     parser = argparse.ArgumentParser(description="Train DFA encoder")

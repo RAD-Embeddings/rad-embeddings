@@ -64,16 +64,16 @@ if __name__ == "__main__":
 
     layout = """
         [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][ # ][ 0 ][   ][ 1 ][ # ]
-        [ # ][   ][   ][ b ][ b ][ b ][   ][ # ][   ][ 4 ][   ][ # ]
-        [ # ][   ][   ][ b ][ b ][ b ][   ][ # ][ 3 ][   ][ 2 ][ # ]
-        [ # ][   ][   ][ b ][ b ][ b ][   ][ # ][ # ][#,a][ # ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][#,a][ 0 ][   ][ 1 ][ # ]
+        [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][   ][ 4 ][   ][ # ]
+        [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][ 3 ][   ][ 2 ][ # ]
+        [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][#,a][#,a][#,a][ # ]
         [ # ][ A ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
         [ # ][ B ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
-        [ # ][   ][   ][ a ][ a ][ a ][   ][ # ][ # ][#,b][ # ][ # ]
-        [ # ][   ][   ][ a ][ a ][ a ][   ][ # ][ 5 ][   ][ 6 ][ # ]
-        [ # ][   ][   ][ a ][ a ][ a ][   ][ # ][   ][ 9 ][   ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][ # ][ 8 ][   ][ 7 ][ # ]
+        [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][#,b][#,b][#,b][ # ]
+        [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][ 5 ][   ][ 6 ][ # ]
+        [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][   ][ 9 ][   ][ # ]
+        [ # ][   ][   ][   ][   ][   ][   ][#,b][ 8 ][   ][ 7 ][ # ]
         [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
     """
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         is_circular=args.circular,
         no_assume=args.no_assume,
         n_agents=env.num_agents,
-        deterministic=True
+        deterministic=False
     )
 
     key, subkey = jax.random.split(key)
@@ -111,8 +111,8 @@ if __name__ == "__main__":
 
     summarize_params(ac_params)
 
-    # policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0].sample(seed=key)
-    policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0]
+    policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0].sample(seed=key)
+    # policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0]
 
     n = 1_000
 
@@ -140,6 +140,8 @@ if __name__ == "__main__":
             _dones = {agent: dones[agent].item() for agent in dones}
             print(_rewards)
             print(_dones)
+            # jax.numpy.set_printoptions(threshold=10000)
+            # print(obs)
             # if any(rewards[agent] <= 0 and dones[agent] for agent in env.agents):
             input()
             step += 1
