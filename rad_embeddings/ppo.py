@@ -273,6 +273,13 @@ def make_train(config, env, network, batchify):
                     log["actor_loss"] = np.mean(actor_loss)
                     log["entropy"] = np.mean(entropy)
 
+                    returns = [float(x.item()) for x in return_buffer_log]
+                    n = len(returns)
+                    counts = Counter(returns)
+                    return_dist = {i: float(counts[i])/float(n) for i in counts}
+                    log["min_return_rate"] = return_dist[np.min(returns)]
+                    log["max_return_rate"] = return_dist[np.max(returns)]
+
                     log_file = Path(config.get("LOG"))
                     df = pd.DataFrame([log])
                     df.to_csv(
@@ -328,6 +335,13 @@ def make_train(config, env, network, batchify):
                     log["value_loss"] = np.mean(value_loss)
                     log["actor_loss"] = np.mean(actor_loss)
                     log["entropy"] = np.mean(entropy)
+
+                    returns = [float(x.item()) for x in return_buffer_wandb]
+                    n = len(returns)
+                    counts = Counter(returns)
+                    return_dist = {i: float(counts[i])/float(n) for i in counts}
+                    log["min_return_rate"] = return_dist[np.min(returns)]
+                    log["max_return_rate"] = return_dist[np.max(returns)]
 
                     timesteps = info["timestep"][-1, :]
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
@@ -385,29 +399,32 @@ def make_train(config, env, network, batchify):
                     timesteps = info["timestep"][-1, :]
                     log["timestep"] = int(np.sum(timesteps) / config["NUM_AGENTS"])
 
-                    returns = [float(x) for x in return_buffer_debug]
+                    returns = [float(x.item()) for x in return_buffer_debug]
                     n = len(returns)
                     counts = Counter(returns)
                     return_dist = {i: float(counts[i])/float(n) for i in counts}
+                    log["min_return_rate"] = return_dist[np.min(returns)]
+                    log["max_return_rate"] = return_dist[np.max(returns)]
 
                     jax.debug.print(
                         """
-timestep            = {timestep}
-disc_return_mean    = {disc_return_mean}
-return_min          = {return_min}
-return_mean         = {return_mean}
-return_max          = {return_max}
-return_std          = {return_std}
-ep_len_min          = {ep_len_min}
-ep_len_mean         = {ep_len_mean}
-ep_len_max          = {ep_len_max}
-ep_len_std          = {ep_len_std}
-total loss          = {total_loss}
-value loss          = {value_loss}
-actor loss          = {actor_loss}
-entropy             = {entropy}
-fps                 = {fps}
-return dist         = {return_dist}
+timestep         = {timestep}
+disc_return_mean = {disc_return_mean}
+return_min       = {return_min}
+return_mean      = {return_mean}
+return_max       = {return_max}
+return_std       = {return_std}
+ep_len_min       = {ep_len_min}
+ep_len_mean      = {ep_len_mean}
+ep_len_max       = {ep_len_max}
+ep_len_std       = {ep_len_std}
+total_loss       = {total_loss}
+value_loss       = {value_loss}
+actor_loss       = {actor_loss}
+entropy          = {entropy}
+fps              = {fps}
+min_return_rate  = {min_return_rate}
+max_return_rate  = {max_return_rate}
                         """,
                         timestep=log["timestep"],
                         disc_return_mean=log["disc_return_mean"],
@@ -424,7 +441,8 @@ return dist         = {return_dist}
                         actor_loss=log["actor_loss"],
                         entropy=log["entropy"],
                         fps=log["fps"],
-                        return_dist=return_dist,
+                        min_return_rate=log["min_return_rate"],
+                        max_return_rate=log["max_return_rate"],
                         ordered=True)
 
                     start_time_debug = time.time()
