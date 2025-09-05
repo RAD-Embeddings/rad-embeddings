@@ -1,5 +1,5 @@
-DEBUG: True
-WANDB: False
+DEBUG: False
+WANDB: True
 WANDB_ENTITY: beyazit-y-berkeley-eecs
 WANDB_PROJECT: rad-marl-jax
 MAX_EP_LEN: 200
