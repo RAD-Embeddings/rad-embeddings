@@ -19,15 +19,6 @@ from dfax.samplers import ReachSampler, ReachAvoidSampler, ConflictSampler
 from flax.linen.initializers import constant, orthogonal
 
 
-class BilinearFusion(nn.Module):
-    out_dim: int
-
-    @nn.compact
-    def __call__(self, x, y):
-        d_x, d_y = x.shape[-1], y.shape[-1]
-        W = self.param("W", nn.initializers.lecun_normal(), (d_x, d_y, self.out_dim))
-        return jnp.einsum("bi,ijk,bj->bk", x, W, y)
-
 class ActorCritic(nn.Module):
     action_dim: int
     encoder: nn.Module
@@ -68,10 +59,10 @@ class ActorCritic(nn.Module):
         ])
         self.task_feat = nn.Sequential([
             nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.relu,
-            nn.Dense(128, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.relu,
-            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+            nn.tanh,
+            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.tanh,
+            nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])
 
     @nn.compact
@@ -100,7 +91,7 @@ class ActorCritic(nn.Module):
                 assume_graph = batch2graph(assume_batch)
                 assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
                 assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
-                task_feat = jnp.concatenate([task_feat, assume_feat, BilinearFusion(out_dim=32)(guarantee_feat, assume_feat)], axis=-1)
+                task_feat = jnp.concatenate([task_feat, assume_feat], axis=-1)
 
             if "agent_id" in batch:
                 agent_id_batch = batch["agent_id"]
