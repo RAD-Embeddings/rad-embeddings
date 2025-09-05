@@ -14,7 +14,7 @@ mkdir -p encoder_log
 
 for seed in {0..9}; do
   echo "Running seed $seed on GPU $DEVICE_ID..."
-  CUDA_VISIBLE_DEVICES=$DEVICE_ID python train_encoder.py \
+  CUDA_VISIBLE_DEVICES=$DEVICE_ID python rad_embeddings/train_encoder.py \
     --seed $seed \
     --wandb \
     --log encoder_storage/log_${seed}.csv
