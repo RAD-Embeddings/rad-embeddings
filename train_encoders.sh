@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Usage: ./run_seeds.sh <CUDA_DEVICE_ID>
-# Example: ./run_seeds.sh 0
-
 DEVICE_ID=$1
 
 if [ -z "$DEVICE_ID" ]; then
