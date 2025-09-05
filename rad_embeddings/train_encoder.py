@@ -12,6 +12,7 @@ from dfax import batch2graph
 from dfa_gym import DFABisimEnv
 from wrappers import LogWrapper
 from utils import summarize_params
+from dfax.samplers import RADSampler
 import flax.serialization as serialization
 from flax.linen.initializers import constant, orthogonal
 
@@ -78,19 +79,31 @@ if __name__ == "__main__":
         "--seed",
         type=int,
         default=42,
-        help="Seed used for PRNGKey"
+        help="Seed used for PRNGKey (default: 42)"
     )
     parser.add_argument(
         "--save-dir",
         type=str,
-        default="storage",
-        help="Directory for saving the trained encoder"
+        default="encoder_storage",
+        help="Directory for saving the trained encoder (default: encoder_storage)"
     )
     parser.add_argument(
         "--rad-dim",
         type=int,
         default=32,
-        help="Dimension of the RAD embeddings"
+        help="Dimension of the RAD embeddings (default: 32)"
+    )
+    parser.add_argument(
+        "--max-size",
+        type=int,
+        default=10,
+        help="Number of DFA states (default: 10)"
+    )
+    parser.add_argument(
+        "--n-tokens",
+        type=int,
+        default=10,
+        help="Number tokens (default: 10)"
     )
     parser.add_argument(
         "--wandb",
@@ -116,10 +129,11 @@ if __name__ == "__main__":
 
     key = jax.random.PRNGKey(args.seed)
 
-    env = DFABisimEnv()
+    sampler = RADSampler(max_size=args.max_size, n_tokens=args.n_tokens)
+    env = DFABisimEnv(sampler=sampler)
     env = LogWrapper(env=env, config=config)
 
-    encoder = Encoder(output_dim=args.rad_dim, n_msg_stps=env.sampler.max_size)
+    encoder = Encoder(encoder_dim=args.rad_dim, max_size=args.max_size)
 
     network = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
@@ -137,11 +151,13 @@ if __name__ == "__main__":
     out = train_jit(key)
 
     os.makedirs(args.save_dir, exist_ok=True)
+
     trained_params = out["runner_state"][0].params
-    trained_encoder_params = {"params": trained_params["params"]["encoder"]}
-    with open(f"{args.save_dir}/trained_encoder_ac_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}.msgpack", "wb") as f:
+    with open(f"{args.save_dir}/encoder_ac_rad_dim_{args.rad_dim}_max_size_{args.max_size}_n_tokens_{args.n_tokens}_params_{args.seed}", "wb") as f:
         f.write(serialization.to_bytes(trained_params))
-    with open(f"{args.save_dir}/trained_encoder_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}.msgpack", "wb") as f:
+
+    trained_encoder_params = {"params": trained_params["params"]["encoder"]}
+    with open(f"{args.save_dir}/encoder_rad_dim_{args.rad_dim}_max_size_{args.max_size}_n_tokens_{args.n_tokens}_params_{args.seed}", "wb") as f:
         f.write(serialization.to_bytes(trained_encoder_params))
 
     if config["WANDB"]:
