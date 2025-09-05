@@ -120,10 +120,17 @@ if __name__ == "__main__":
         action="store_true",
         help="Print logs"
     )
+    parser.add_argument(
+        "--log",
+        type=str,
+        default="encoder_log.csv",
+        help="Log csv name (default: encoder_log.csv)"
+    )
     args = parser.parse_args()
 
     config["DEBUG"] = args.debug
     config["WANDB"] = args.wandb
+    config["LOG"] = args.log
 
     if config["WANDB"]:
         wandb.init(

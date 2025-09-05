@@ -22,8 +22,9 @@ DFA_SIZE_P: null
 DFA_PROB_STUTTER: 1
 MAX_COOP_REWARD: 1
 ENCODER_DIM: 32
-ENCODER_FILE_PREFIX: storage/encoder_32_dim_params
-SAVE_FILE_PREFIX: storage/example_policy_params
+ENCODER_FILE_PREFIX: encoder_storage/encoder_32_dim_params
+SAVE_FILE_PREFIX: example_storage/example_policy_params
+LOG_FILE_PREFIX: example_log/example_policy_log
 # PPO PARAMS
 LR: 0.00005
 NUM_ENVS: 64

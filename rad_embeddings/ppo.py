@@ -4,9 +4,11 @@ import wandb
 import optax
 import distrax
 import numpy as np
+import pandas as pd
 import jax.numpy as jnp
 import flax.linen as nn
 from flax import struct
+from pathlib import Path
 from collections import deque, Counter
 from flax.training.train_state import TrainState
 
@@ -222,6 +224,66 @@ def make_train(config, env, network, batchify):
             rng = update_state[-1]
 
             steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
+
+            if config.get("LOG"):
+                ep_len_buffer_log = deque(maxlen=steps_per_update)
+                return_buffer_log = deque(maxlen=steps_per_update)
+                disc_return_buffer_log = deque(maxlen=steps_per_update)
+                start_time_log = time.time()
+
+                def callback(info, loss_info):
+                    nonlocal start_time_log
+
+                    elapsed = time.time() - start_time_log
+
+                    log = {}
+
+                    timesteps = info["timestep"][-1, :]
+                    timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
+                    log["timestep"] = timestep
+
+                    fps = (steps_per_update / elapsed) if elapsed > 0 else 0.0
+                    log["fps"] = np.mean(fps)
+
+                    ep_len_values = info["returned_episode_lengths"][info["returned_episode"]]
+                    ep_len_buffer_log.extend(ep_len_values)
+
+                    return_values = info["returned_episode_returns"][info["returned_episode"]]
+                    return_buffer_log.extend(return_values)
+
+                    disc_return_values = info["returned_episode_disc_returns"][info["returned_episode"]]
+                    disc_return_buffer_log.extend(disc_return_values)
+
+                    log["ep_len_min"] = np.min(ep_len_buffer_log)
+                    log["ep_len_mean"] = np.mean(ep_len_buffer_log)
+                    log["ep_len_max"] = np.max(ep_len_buffer_log)
+                    log["ep_len_std"] = np.std(ep_len_buffer_log)
+
+                    log["return_min"] = np.min(return_buffer_log)
+                    log["return_mean"] = np.mean(return_buffer_log)
+                    log["return_max"] = np.max(return_buffer_log)
+                    log["return_std"] = np.std(return_buffer_log)
+
+                    log["disc_return_mean"] = np.mean(disc_return_buffer_log)
+
+                    total_loss, (value_loss, actor_loss, entropy) = loss_info
+
+                    log["total_loss"] = np.mean(total_loss)
+                    log["value_loss"] = np.mean(value_loss)
+                    log["actor_loss"] = np.mean(actor_loss)
+                    log["entropy"] = np.mean(entropy)
+
+                    log_file = Path(config.get("LOG"))
+                    df = pd.DataFrame([log])
+                    df.to_csv(
+                        log_file,
+                        mode="a",
+                        header=not log_file.exists(),
+                        index=False
+                    )
+
+                    start_time_log = time.time()
+                jax.experimental.io_callback(callback, None, metric, loss_info)
 
             if config.get("WANDB"):
                 ep_len_buffer_wandb = deque(maxlen=steps_per_update)

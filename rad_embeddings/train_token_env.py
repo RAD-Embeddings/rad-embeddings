@@ -156,6 +156,8 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)
     assert config is not None
 
+    config["LOG"] = f"""{config["LOG_FILE_PREFIX"]}_{args.seed}.csv"""
+
     if config["WANDB"]:
         wandb.init(
             entity=config["WANDB_ENTITY"],
