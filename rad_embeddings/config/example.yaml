@@ -1,0 +1,40 @@
+DEBUG: True
+WANDB: False
+WANDB_ENTITY: beyazit-y-berkeley-eecs
+WANDB_PROJECT: rad-marl-jax
+MAX_EP_LEN: 200
+LAYOUT: |
+    [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
+    [ # ][   ][   ][   ][   ][   ][   ][#,a][ 0 ][   ][ 1 ][ # ]
+    [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][   ][ 4 ][   ][ # ]
+    [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][ 3 ][   ][ 2 ][ # ]
+    [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][#,a][#,a][#,a][ # ]
+    [ # ][ A ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
+    [ # ][ B ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
+    [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][#,b][#,b][#,b][ # ]
+    [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][ 5 ][   ][ 6 ][ # ]
+    [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][   ][ 9 ][   ][ # ]
+    [ # ][   ][   ][   ][   ][   ][   ][#,b][ 8 ][   ][ 7 ][ # ]
+    [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
+DFA_SAMPLER: Reach
+DFA_MAX_SIZE: 4
+DFA_SIZE_P: null
+DFA_PROB_STUTTER: 1
+MAX_COOP_REWARD: 1
+ENCODER_DIM: 32
+ENCODER_FILE_PREFIX: storage/encoder_32_dim_params
+SAVE_FILE_PREFIX: storage/example_policy_params
+# PPO PARAMS
+LR: 0.00005
+NUM_ENVS: 64
+NUM_STEPS: 512
+TOTAL_TIMESTEPS: 100_000_000
+UPDATE_EPOCHS: 4
+NUM_MINIBATCHES: 8
+GAMMA: 0.99
+GAE_LAMBDA: 0.95
+CLIP_EPS: 0.2
+ENT_COEF: 0.01
+VF_COEF: 0.5
+MAX_GRAD_NORM: 0.5
+ANNEAL_LR: True

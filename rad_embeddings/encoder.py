@@ -54,28 +54,28 @@ class GATv2Conv(nn.Module):
 
 
 class Encoder(nn.Module):
-    output_dim: int
-    n_msg_stps: int = 10
+    encoder_dim: int
+    max_size: int = 10
     n_heads: int = 4
 
     @staticmethod
-    def load_params(output_dim, n_msg_stps, encoder_dir):
-        encoder = Encoder(output_dim=output_dim, n_msg_stps=n_msg_stps)
+    def load_params(encoder_file, encoder_dim, max_size=10, n_heads=4):
+        encoder = Encoder(encoder_dim=encoder_dim, max_size=max_size, n_heads=n_heads)
         sampler = RADSampler(p=None)
         rng = jax.random.PRNGKey(30)
         dfa = sampler.sample(rng)
         dfa_graph = dfa.to_graph()
         network_params = encoder.init(rng, dfa_graph)
-        with open(encoder_dir, "rb") as f:
+        with open(encoder_file, "rb") as f:
             encoder_params = serialization.from_bytes(network_params, f.read())
         return encoder, encoder_params
 
     def setup(self):
-        hidden_dim = self.output_dim * 2
+        hidden_dim = self.encoder_dim * 2
         self.linear_h = nn.Dense(hidden_dim, use_bias=False)
         self.linear_e = nn.Dense(hidden_dim, use_bias=False)
         self.gatv2 = GATv2Conv(out_dim=hidden_dim, num_heads=self.n_heads)
-        self.g_embed = nn.Dense(self.output_dim, use_bias=False)
+        self.g_embed = nn.Dense(self.encoder_dim, use_bias=False)
 
     def __call__(
         self,
@@ -90,7 +90,7 @@ class Encoder(nn.Module):
         h = h0
         n_states = graph["n_states"]
 
-        for i in range(self.n_msg_stps):
+        for i in range(self.max_size):
             _h = nn.tanh(
                 self.gatv2(
                     node_features=jnp.concatenate([h, h0], axis=-1),

@@ -1,5 +1,7 @@
 import os
+import sys
 import jax
+import yaml
 import wandb
 import jraph
 import distrax
@@ -23,13 +25,11 @@ class ActorCritic(nn.Module):
     action_dim: int
     encoder: nn.Module
     encoder_params: FrozenDict
-    is_circular: bool
-    no_assume: bool
     n_agents: int
     deterministic: bool = False
 
     def setup(self):
-        padding = "CIRCULAR" if self.is_circular else "VALID"
+        padding = "VALID"
         self.cnn = nn.Sequential([
             nn.Conv(16, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
             nn.relu,
@@ -38,7 +38,6 @@ class ActorCritic(nn.Module):
             nn.Conv(64, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
             nn.relu,
             lambda x: x.reshape((x.shape[0], -1)),
-            # nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])
         self.agent_feat = nn.Embed(self.n_agents, 32)
         self.value_net = nn.Sequential([
@@ -81,28 +80,26 @@ class ActorCritic(nn.Module):
 
         task_feat = guarantee_feat
 
-        if not self.no_assume:
+        task_feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
 
-            task_feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
+        if "assume" in batch:
+            batch_size, rad_size = guarantee_feat.shape
+            assume_batch = batch["assume"]
+            assume_graph = batch2graph(assume_batch)
+            assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
+            assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
+            task_feat = jnp.concatenate([task_feat, assume_feat], axis=-1)
 
-            if "assume" in batch:
-                batch_size, rad_size = guarantee_feat.shape
-                assume_batch = batch["assume"]
-                assume_graph = batch2graph(assume_batch)
-                assume_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, assume_graph))
-                assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
-                task_feat = jnp.concatenate([task_feat, assume_feat], axis=-1)
+        if "agent_id" in batch:
+            agent_id_batch = batch["agent_id"]
+            if agent_id_batch.ndim == 0:
+                agent_id_batch = agent_id_batch[None, ...] # -> (1,)
+            elif agent_id_batch.ndim != 1:
+                raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
+            agent_feat = self.agent_feat(agent_id_batch)
+            task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
 
-            if "agent_id" in batch:
-                agent_id_batch = batch["agent_id"]
-                if agent_id_batch.ndim == 0:
-                    agent_id_batch = agent_id_batch[None, ...] # -> (1,)
-                elif agent_id_batch.ndim != 1:
-                    raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
-                agent_feat = self.agent_feat(agent_id_batch)
-                task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
-
-            task_feat = self.task_feat(task_feat)
+        task_feat = self.task_feat(task_feat)
 
         feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
 
@@ -139,141 +136,83 @@ def _batchify(obss: dict, agents):
 
 
 if __name__ == "__main__":
-    config = {
-        "LR": 5e-5,
-        "NUM_ENVS": 64,
-        "NUM_STEPS": 512,
-        "TOTAL_TIMESTEPS": 1e8,
-        "UPDATE_EPOCHS": 10,
-        "NUM_MINIBATCHES": 8,
-        "GAMMA": 0.99,
-        "GAE_LAMBDA": 0.95,
-        "CLIP_EPS": 0.2,
-        "ENT_COEF": 0.01,
-        "VF_COEF": 0.5,
-        "MAX_GRAD_NORM": 0.5,
-        "ANNEAL_LR": True,
-    }
 
-    parser = argparse.ArgumentParser(description="Train DFA encoder")
+    parser = argparse.ArgumentParser(description="Train TokenEnv policy")
     parser.add_argument(
         "--seed",
         type=int,
         default=42,
-        help="Seed used for PRNGKey"
+        help="Seed used for PRNGKey (default: 42)"
     )
     parser.add_argument(
-        "--save-dir",
+        "--config",
         type=str,
-        default="storage",
-        help="Directory for saving the trained encoder"
-    )
-    parser.add_argument(
-        "--rad-dim",
-        type=int,
-        default=32,
-        help="Size of the RAD embeddings"
-    )
-    parser.add_argument(
-        "--wandb",
-        action="store_true",
-        help="Log to wandb"
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Print logs"
-    )
-    parser.add_argument(
-        "--n-agents",
-        type=int,
-        default=1,
-        help="Number of agents"
-    )
-    parser.add_argument(
-        "--use-fixed-map",
-        action="store_true",
-        help="Use fixed map in TokenEnv"
-    )
-    parser.add_argument(
-        "--n-token-repeat",
-        type=int,
-        default=1,
-        help="Number of token repeats in TokenEnv"
-    )
-    parser.add_argument(
-        "--circular",
-        action="store_true",
-        help="Use circular map in TokenEnv"
-    )
-    parser.add_argument(
-        "--no-assume",
-        action="store_true",
-        help="Don't pass assume part to the polcy"
+        required=True,
+        help="Config file"
     )
     args = parser.parse_args()
 
-    config["DEBUG"] = args.debug
-    config["WANDB"] = args.wandb
+    with open(args.config, "r") as f:
+        config = yaml.safe_load(f)
+    assert config is not None
 
     if config["WANDB"]:
         wandb.init(
-            entity="beyazit-y-berkeley-eecs",
-            project="rad-marl-jax",
+            entity=config["WANDB_ENTITY"],
+            project=config["WANDB_PROJECT"],
             config=config
         )
 
-    key = jax.random.PRNGKey(args.seed)
+    token_env = TokenEnv(
+        layout=config["LAYOUT"],
+        max_steps_in_episode=config["MAX_EP_LEN"]
+    )
 
-    # env = DFAWrapper(
-    #     TokenEnv(
-    #         n_agents=args.n_agents,
-    #         fixed_map_seed=args.seed if args.use_fixed_map else None,
-    #         n_token_repeat=args.n_token_repeat,
-    #         is_circular=args.circular
-    #     ),
-    #     sampler=ReachAvoidSampler(max_size=6)
-    #     # sampler=ConflictSampler(max_size=6, n_agents=args.n_agents)
-    # )
-
-    layout = """
-        [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][#,a][ 0 ][   ][ 1 ][ # ]
-        [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][   ][ 4 ][   ][ # ]
-        [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][ 3 ][   ][ 2 ][ # ]
-        [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][#,a][#,a][#,a][ # ]
-        [ # ][ A ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
-        [ # ][ B ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
-        [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][#,b][#,b][#,b][ # ]
-        [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][ 5 ][   ][ 6 ][ # ]
-        [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][   ][ 9 ][   ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][#,b][ 8 ][   ][ 7 ][ # ]
-        [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
-    """
-
-    token_env = TokenEnv(layout=layout, max_steps_in_episode=200)
+    if config["DFA_SAMPLER"] == "Reach":
+        sampler = ReachSampler(
+            p=config["DFA_SIZE_P"],
+            max_size=config["DFA_MAX_SIZE"],
+            prob_stutter=config["DFA_PROB_STUTTER"],
+            n_tokens=token_env.n_tokens
+        )
+    elif config["DFA_SAMPLER"] == "ReachAvoid":
+        sampler = ReachAvoidSampler(
+            p=config["DFA_SIZE_P"],
+            max_size=config["DFA_MAX_SIZE"],
+            prob_stutter=config["DFA_PROB_STUTTER"],
+            n_tokens=token_env.n_tokens
+        )
+    elif config["DFA_SAMPLER"] == "RAD":
+        sampler = RADSampler(
+            p=config["DFA_SIZE_P"],
+            max_size=config["DFA_MAX_SIZE"],
+            prob_stutter=config["DFA_PROB_STUTTER"],
+            n_tokens=token_env.n_tokens
+        )
+    else:
+        raise ValueError
 
     env = DFAWrapper(
         env=token_env,
-        sampler=ReachSampler(max_size=4, prob_stutter=1.0, n_tokens=token_env.n_tokens),
-        max_eoe_reward=1
+        sampler=sampler,
+        max_eoe_reward=config["MAX_COOP_REWARD"]
     )
     env = LogWrapper(env=env, config=config)
 
     encoder, encoder_params = Encoder.load_params(
-        output_dim=args.rad_dim,
-        n_msg_stps=env.sampler.max_size,
-        encoder_dir=f"{args.save_dir}/trained_encoder_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}.msgpack"
+        max_size=env.sampler.max_size,
+        encoder_dim=config["ENCODER_DIM"],
+        encoder_file=f"""{config["ENCODER_FILE_PREFIX"]}_{args.seed}"""
     )
 
     network = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder,
         encoder_params=encoder_params,
-        is_circular=args.circular,
-        no_assume=args.no_assume,
         n_agents=env.num_agents
     )
+
+    key = jax.random.PRNGKey(args.seed)
 
     if config["DEBUG"]:
         key, subkey = jax.random.split(key)
@@ -285,9 +224,8 @@ if __name__ == "__main__":
     train_jit = jax.jit(make_train(config, env, network, _batchify))
     out = train_jit(key)
 
-    os.makedirs(args.save_dir, exist_ok=True)
     trained_params = out["runner_state"][0].params
-    with open(f"{args.save_dir}/trained_token_env_policy_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}_n_agents_{args.n_agents}_use_fixed_map_{args.use_fixed_map}.msgpack", "wb") as f:
+    with open(f"""{config["SAVE_FILE_PREFIX"]}_{args.seed}""", "wb") as f:
         f.write(serialization.to_bytes(trained_params))
 
     if config["WANDB"]:
