@@ -20,6 +20,7 @@ from flax.linen.initializers import constant, orthogonal
 class ActorCritic(nn.Module):
     action_dim: int
     encoder: nn.Module
+    deterministic: bool = False
 
     def setup(self):
         self.safe_l2_norm = lambda x: jnp.sqrt(jnp.sum(x ** 2, axis=-1, keepdims=True) + jnp.finfo(jnp.float32).eps)
@@ -49,8 +50,12 @@ class ActorCritic(nn.Module):
 
         logits = self.policy_head(feat_l - feat_r)
 
-        pi = distrax.Categorical(logits=logits)
-        return pi, value.squeeze()
+        if self.deterministic:
+            action = jnp.argmax(logits, axis=-1)
+            return action, jnp.squeeze(value, axis=-1)
+        else:
+            pi = distrax.Categorical(logits=logits)
+            return pi, jnp.squeeze(value, axis=-1)
 
 
 def _batchify(obss: dict, agents):
