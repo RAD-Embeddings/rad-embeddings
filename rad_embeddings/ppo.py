@@ -45,6 +45,11 @@ def make_train(config, env, network, batchify):
         updates_done = count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"])
         return config["LR"] * jnp.exp(-config["EXP_DECAY_RATE"] * updates_done)
 
+    def cosine_schedule(count):
+        updates_done = count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"])
+        cosine_decay = 0.5 * (1 + jnp.cos(jnp.pi * updates_done / config["NUM_UPDATES"]))
+        return config["LR"] * cosine_decay
+
     def train(rng):
         # INIT NETWORK
         rng, _rng = jax.random.split(rng)
@@ -60,6 +65,11 @@ def make_train(config, env, network, batchify):
             tx = optax.chain(
                 optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
                 optax.adam(learning_rate=exponential_schedule, eps=1e-5),
+            )
+        elif config.get("LR_ANNEAL_COS"):
+            tx = optax.chain(
+                optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
+                optax.adam(learning_rate=cosine_schedule, eps=1e-5),
             )
         else:
             tx = optax.chain(
