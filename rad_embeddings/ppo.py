@@ -41,16 +41,25 @@ def make_train(config, env, network, batchify):
         )
         return config["LR"] * frac
 
+    def exponential_schedule(count):
+        updates_done = count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"])
+        return config["LR"] * jnp.exp(-config["EXP_DECAY_RATE"] * updates_done)
+
     def train(rng):
         # INIT NETWORK
         rng, _rng = jax.random.split(rng)
         init_x = env.observation_space(env.agents[0]).sample(_rng)
         rng, _rng = jax.random.split(rng)
         network_params = network.init(_rng, init_x)
-        if config["ANNEAL_LR"]:
+        if config.get("LR_ANNEAL_LINEAR"):
             tx = optax.chain(
                 optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
                 optax.adam(learning_rate=linear_schedule, eps=1e-5),
+            )
+        elif config.get("LR_ANNEAL_EXP"):
+            tx = optax.chain(
+                optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
+                optax.adam(learning_rate=exponential_schedule, eps=1e-5),
             )
         else:
             tx = optax.chain(
