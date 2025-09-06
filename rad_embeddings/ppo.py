@@ -50,12 +50,23 @@ def make_train(config, env, network, batchify):
         cosine_decay = 0.5 * (1 + jnp.cos(jnp.pi * updates_done / config["NUM_UPDATES"]))
         return config["LR"] * cosine_decay
 
-    def combo_schedule(count):
+    def warmup_schedule(count):
         updates_done = count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"])
-        return jnp.where(updates_done < (config["LR_ANNEAL_COMBO_PARAM"] * config["NUM_UPDATES"]),
-            linear_schedule(count),
-            cosine_schedule(count)
-        )
+        updates_done = jnp.minimum(updates_done, config["NUM_UPDATES"])
+
+        warmup_updates = (config["LR_ANNEAL_WARMUP_PARAM"] * config["NUM_UPDATES"])
+        min_frac = config.get("LR_ANNEAL_MIN_FRAC", 0.0)
+
+        warmup_lr = config["LR"] * (updates_done / jnp.maximum(1, warmup_updates))
+
+        progress = (updates_done - warmup_updates) / jnp.maximum(1, config["NUM_UPDATES"] - warmup_updates)
+        progress = jnp.clip(progress, 0.0, 1.0)
+
+        cosine_part = 0.5 * (1.0 + jnp.cos(jnp.pi * progress))
+        post_warmup_lr = config["LR"] * (min_frac + (1.0 - min_frac) * cosine_part)
+
+        return jnp.where(updates_done < warmup_updates, warmup_lr, post_warmup_lr)
+
 
     def train(rng):
         # INIT NETWORK
@@ -78,10 +89,10 @@ def make_train(config, env, network, batchify):
                 optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
                 optax.adam(learning_rate=cosine_schedule, eps=1e-5),
             )
-        elif config.get("LR_ANNEAL_COMBO"):
+        elif config.get("LR_ANNEAL_WARMUP"):
             tx = optax.chain(
                 optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
-                optax.adam(learning_rate=combo_schedule, eps=1e-5),
+                optax.adam(learning_rate=warmup_schedule, eps=1e-5),
             )
         else:
             tx = optax.chain(
