@@ -50,6 +50,13 @@ def make_train(config, env, network, batchify):
         cosine_decay = 0.5 * (1 + jnp.cos(jnp.pi * updates_done / config["NUM_UPDATES"]))
         return config["LR"] * cosine_decay
 
+    def combo_schedule(count):
+        updates_done = count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"])
+        if updates_done < (config["LR_ANNEAL_COMBO_PARAM"] * config["NUM_UPDATES"]):
+            return linear_schedule(count)
+        else:
+            return cosine_schedule(count)
+
     def train(rng):
         # INIT NETWORK
         rng, _rng = jax.random.split(rng)
@@ -70,6 +77,11 @@ def make_train(config, env, network, batchify):
             tx = optax.chain(
                 optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
                 optax.adam(learning_rate=cosine_schedule, eps=1e-5),
+            )
+        elif config.get("LR_ANNEAL_COMBO"):
+            tx = optax.chain(
+                optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
+                optax.adam(learning_rate=combo_schedule, eps=1e-5),
             )
         else:
             tx = optax.chain(
