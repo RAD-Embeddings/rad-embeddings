@@ -52,10 +52,10 @@ def make_train(config, env, network, batchify):
 
     def combo_schedule(count):
         updates_done = count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"])
-        if updates_done < (config["LR_ANNEAL_COMBO_PARAM"] * config["NUM_UPDATES"]):
-            return linear_schedule(count)
-        else:
-            return cosine_schedule(count)
+        return jnp.where(updates_done < (config["LR_ANNEAL_COMBO_PARAM"] * config["NUM_UPDATES"]),
+            linear_schedule(count),
+            cosine_schedule(count)
+        )
 
     def train(rng):
         # INIT NETWORK
