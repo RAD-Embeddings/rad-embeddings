@@ -197,7 +197,7 @@ if __name__ == "__main__":
     env = DFAWrapper(
         env=token_env,
         sampler=sampler,
-        max_eoe_reward=config["MAX_COOP_REWARD"]
+        max_coop_reward=config["MAX_COOP_REWARD"]
     )
     env = LogWrapper(env=env, config=config)
 
