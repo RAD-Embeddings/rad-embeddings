@@ -63,9 +63,10 @@ class ActorCritic(nn.Module):
             nn.tanh,
             nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])
+        self.task_rnn = nn.GRUCell(features=32)
 
     @nn.compact
-    def __call__(self, batch):
+    def __call__(self, latent_task_feat, batch):
         obs_batch = batch["obs"]
         if obs_batch.ndim == 3: # (C, H, W)
             obs_batch = obs_batch[None, ...] # -> (1, C, H, W)
@@ -101,6 +102,8 @@ class ActorCritic(nn.Module):
 
         task_feat = self.task_feat(task_feat)
 
+        latent_task_feat, task_feat = self.task_rnn(latent_task_feat, task_feat)
+
         feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
 
         value = self.value_net(feat)
@@ -108,10 +111,10 @@ class ActorCritic(nn.Module):
 
         if self.deterministic:
             action = jnp.argmax(logits, axis=-1)
-            return action, jnp.squeeze(value, axis=-1)
+            return latent_task_feat, action, jnp.squeeze(value, axis=-1)
         else:
             pi = distrax.Categorical(logits=logits)
-            return pi, jnp.squeeze(value, axis=-1)
+            return latent_task_feat, pi, jnp.squeeze(value, axis=-1)
 
 
 def _batchify(obss: dict, agents):
@@ -218,9 +221,11 @@ if __name__ == "__main__":
 
     if config["DEBUG"]:
         key, subkey = jax.random.split(key)
-        init_x = env.observation_space(env.agents[0]).sample(subkey)
+        init_x = jax.tree.map(lambda x: jnp.stack([x] * env.num_agents * config["NUM_ENVS"], axis=0), env.observation_space(env.agents[0]).sample(subkey))
         key, subkey = jax.random.split(key)
-        params = network.init(subkey, init_x)
+        init_hstate = nn.GRUCell(features=32).initialize_carry(subkey, (env.num_agents * config["NUM_ENVS"], 32))
+        key, subkey = jax.random.split(key)
+        params = network.init(subkey, init_hstate, init_x)
         summarize_params(params)
 
     train_jit = jax.jit(make_train(config, env, network, _batchify))

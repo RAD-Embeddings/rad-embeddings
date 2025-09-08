@@ -97,7 +97,7 @@ if __name__ == "__main__":
     # policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0]
 
     n = 100
-    agent_rewards = {agent: [0 for i in range(n)] for agent in env.agents}
+    agent_rewards = {agent: [] for agent in env.agents}
 
     for i in range(n):
         key, subkey = jax.random.split(key)
@@ -108,6 +108,8 @@ if __name__ == "__main__":
         done = False
         # print("Episode", i)
         step = 0
+        for agent in env.agents:
+            agent_rewards[agent].append(0)
         while not done:
             keys = jax.random.split(key, env.num_agents + 1)
             key, subkeys =  keys[0], keys[1:]
@@ -129,17 +131,20 @@ if __name__ == "__main__":
             # input()
             step += 1
             for agent in env.agents:
-                agent_rewards[agent][i] += rewards[agent].item()
+                agent_rewards[agent][-1] += rewards[agent].item()
 
-        print(f"Test completed for {i + 1} samples.", end="\r")
+        print(f"Test completed for {i + 1} samples.")
+
+        agent_reward_counts = {agent: Counter(agent_rewards[agent]) for agent in env.agents}
+        agent_reward_dist = {agent: {count: agent_reward_counts[agent][count]/(i + 1) for count in agent_reward_counts[agent]} for agent in env.agents}
+        for agent in env.agents:
+            print(agent, agent_reward_dist[agent])
 
     print(f"Test completed for {args.n} samples.")
 
-    returns = [float(x.item()) for x in return_buffer_log]
     agent_reward_counts = {agent: Counter(agent_rewards[agent]) for agent in env.agents}
     agent_reward_dist = {agent: {i: float(agent_reward_counts[agent][i])/float(n) for i in agent_reward_counts[agent]} for agent in env.agents}
     for agent in env.agents:
         print(agent, agent_reward_dist[agent])
 
-            
     
