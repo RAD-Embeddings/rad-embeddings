@@ -1,102 +1,84 @@
 import jax
+import yaml
 import argparse
 from encoder import Encoder
 from utils import summarize_params
 from dfa_gym import TokenEnv, DFAWrapper
 import flax.serialization as serialization
 from dfax.samplers import ReachSampler, ReachAvoidSampler, ConflictSampler
-from train_token_env import ActorCritic, _batchify
+from train_policy import ActorCritic, _batchify
+from collections import Counter
 
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Test DFA encoder")
+    parser = argparse.ArgumentParser(description="Train TokenEnv policy")
     parser.add_argument(
         "--seed",
         type=int,
         default=42,
-        help="Seed used for PRNGKey"
+        help="Seed used for PRNGKey (default: 42)"
     )
     parser.add_argument(
-        "--save-dir",
+        "--config",
         type=str,
-        default="storage",
-        help="Directory for saving the trained encoder"
-    )
-    parser.add_argument(
-        "--rad-dim",
-        type=int,
-        default=32,
-        help="Size of the RAD embeddings"
-    )
-    parser.add_argument(
-        "--n-agents",
-        type=int,
-        default=1,
-        help="Number of agents"
-    )
-    parser.add_argument(
-        "--use-fixed-map",
-        action="store_true",
-        help="Use fixed map in TokenEnv"
-    )
-    parser.add_argument(
-        "--circular",
-        action="store_true",
-        help="Use circular map in TokenEnv"
-    )
-    parser.add_argument(
-        "--no-assume",
-        action="store_true",
-        help="Don't pass assume part to the polcy"
+        required=True,
+        help="Config file"
     )
     args = parser.parse_args()
 
+    with open(args.config, "r") as f:
+        config = yaml.safe_load(f)
+    assert config is not None
+
     key = jax.random.PRNGKey(16)
 
-    # env = DFAWrapper(
-    #     TokenEnv(
-    #         n_agents=args.n_agents,
-    #         fixed_map_seed=args.seed if args.use_fixed_map else None
-    #     ),
-    #     sampler=ReachAvoidSampler(max_size=6)
-    # )
+    token_env = TokenEnv(
+        layout=config["LAYOUT"],
+        max_steps_in_episode=config["MAX_EP_LEN"]
+    )
 
-    layout = """
-        [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][#,a][ 0 ][   ][ 1 ][ # ]
-        [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][   ][ 4 ][   ][ # ]
-        [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][ 3 ][   ][ 2 ][ # ]
-        [ # ][   ][   ][ b ][ b ][ b ][   ][#,a][#,a][#,a][#,a][ # ]
-        [ # ][ A ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
-        [ # ][ B ][   ][   ][   ][   ][   ][   ][   ][   ][   ][ # ]
-        [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][#,b][#,b][#,b][ # ]
-        [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][ 5 ][   ][ 6 ][ # ]
-        [ # ][   ][   ][ a ][ a ][ a ][   ][#,b][   ][ 9 ][   ][ # ]
-        [ # ][   ][   ][   ][   ][   ][   ][#,b][ 8 ][   ][ 7 ][ # ]
-        [ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ][ # ]
-    """
-
-    token_env = TokenEnv(layout=layout, max_steps_in_episode=200)
+    if config["DFA_SAMPLER"] == "Reach":
+        sampler = ReachSampler(
+            p=config["DFA_SIZE_P"],
+            max_size=config["DFA_MAX_SIZE"],
+            prob_stutter=config["DFA_PROB_STUTTER"],
+            n_tokens=token_env.n_tokens
+        )
+    elif config["DFA_SAMPLER"] == "ReachAvoid":
+        sampler = ReachAvoidSampler(
+            p=config["DFA_SIZE_P"],
+            max_size=config["DFA_MAX_SIZE"],
+            prob_stutter=config["DFA_PROB_STUTTER"],
+            n_tokens=token_env.n_tokens
+        )
+    elif config["DFA_SAMPLER"] == "RAD":
+        sampler = RADSampler(
+            p=config["DFA_SIZE_P"],
+            max_size=config["DFA_MAX_SIZE"],
+            prob_stutter=config["DFA_PROB_STUTTER"],
+            n_tokens=token_env.n_tokens
+        )
+    else:
+        raise ValueError
 
     env = DFAWrapper(
         env=token_env,
-        sampler=ReachSampler(max_size=4, prob_stutter=1.0, n_tokens=token_env.n_tokens)
+        sampler=sampler,
+        max_coop_reward=config["MAX_COOP_REWARD"]
     )
 
     encoder, encoder_params = Encoder.load_params(
-        output_dim=args.rad_dim,
-        n_msg_stps=env.sampler.max_size,
-        encoder_dir=f"{args.save_dir}/trained_encoder_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}.msgpack"
+        max_size=env.sampler.max_size,
+        encoder_dim=config["ENCODER_DIM"],
+        encoder_file=f"""{config["ENCODER_FILE_PREFIX"]}_{args.seed}"""
     )
+
     ac = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
         encoder=encoder,
         encoder_params=encoder_params,
-        is_circular=args.circular,
-        no_assume=args.no_assume,
-        n_agents=env.num_agents,
-        deterministic=False
+        n_agents=env.num_agents
     )
 
     key, subkey = jax.random.split(key)
@@ -105,7 +87,7 @@ if __name__ == "__main__":
     key, subkey = jax.random.split(key)
     ac_params = ac.init(subkey, init_x)
 
-    ac_dir = f"{args.save_dir}/trained_token_env_policy_params_for_seed_{args.seed}_rad_dim_{args.rad_dim}_n_agents_{args.n_agents}_use_fixed_map_{args.use_fixed_map}.msgpack"
+    ac_dir = f"""{config["SAVE_FILE_PREFIX"]}_{args.seed}"""
     with open(ac_dir, "rb") as f:
         ac_params = serialization.from_bytes(ac_params, f.read())
 
@@ -114,16 +96,17 @@ if __name__ == "__main__":
     policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0].sample(seed=key)
     # policy = lambda obs, key: ac.apply(ac_params, _batchify(obs, env.agents))[0]
 
-    n = 1_000
+    n = 100
+    agent_rewards = {agent: [0 for i in range(n)] for agent in env.agents}
 
     for i in range(n):
         key, subkey = jax.random.split(key)
         obs, state = env.reset(subkey)
         init_state = state
-        env.render(state)
+        # env.render(state)
         generated_str = []
         done = False
-        print("Episode", i)
+        # print("Episode", i)
         step = 0
         while not done:
             keys = jax.random.split(key, env.num_agents + 1)
@@ -133,17 +116,30 @@ if __name__ == "__main__":
             key, subkey = jax.random.split(key)
             obs, state, rewards, dones, infos = env.step(subkey, state, actions)
             done = dones["__all__"]
-            print("Step", step)
-            print("actions", actions)
-            env.render(state)
+            # print("Step", step)
+            # print("actions", actions)
+            # env.render(state)
             _rewards = {agent: rewards[agent].item() for agent in rewards}
             _dones = {agent: dones[agent].item() for agent in dones}
-            print(_rewards)
-            print(_dones)
+            # print(_rewards)
+            # print(_dones)
             # jax.numpy.set_printoptions(threshold=10000)
             # print(obs)
             # if any(rewards[agent] <= 0 and dones[agent] for agent in env.agents):
-            input()
+            # input()
             step += 1
+            for agent in env.agents:
+                agent_rewards[agent][i] += rewards[agent].item()
+
+        print(f"Test completed for {i + 1} samples.", end="\r")
+
+    print(f"Test completed for {args.n} samples.")
+
+    returns = [float(x.item()) for x in return_buffer_log]
+    agent_reward_counts = {agent: Counter(agent_rewards[agent]) for agent in env.agents}
+    agent_reward_dist = {agent: {i: float(agent_reward_counts[agent][i])/float(n) for i in agent_reward_counts[agent]} for agent in env.agents}
+    for agent in env.agents:
+        print(agent, agent_reward_dist[agent])
+
             
     
