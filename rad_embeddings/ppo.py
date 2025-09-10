@@ -118,6 +118,8 @@ def make_train(config, env, network, batchify):
         # TRAIN LOOP
         def _update_step(runner_state, unused):
             # COLLECT TRAJECTORIES
+            train_state, env_state, last_obs, rng = runner_state
+            rho = env_state.env_state.rho
             def _env_step(runner_state, unused):
                 train_state, env_state, last_obs, rng = runner_state
 
@@ -136,6 +138,11 @@ def make_train(config, env, network, batchify):
                 rng, _rng = jax.random.split(rng)
                 rng_step = jax.random.split(_rng, config["NUM_ENVS"])
                 obsv, env_state, reward, done, info = jax.vmap(env.step)(rng_step, env_state, env_act)
+                env_state = env_state.replace(
+                    env_state=env_state.env_state.replace(
+                        rho=jnp.full((config["NUM_ENVS"],), rho)
+                    )
+                )
                 info = jax.tree.map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
                 transition = Transition(
                     done=jnp.concatenate([done[agent] for agent in env.agents]),
@@ -159,11 +166,9 @@ def make_train(config, env, network, batchify):
             )
             new_rho = n_episodes_with_max_returns/n_returned_episodes
 
+            rho = 0.9 * rho + 0.1 * new_rho
+
             train_state, env_state, last_obs, rng = runner_state
-
-            old_rho = env_state.env_state.rho
-
-            rho = 0.5 * old_rho + 0.5 * new_rho
 
             env_state = env_state.replace(
                 env_state=env_state.env_state.replace(
