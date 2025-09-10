@@ -135,9 +135,8 @@ def make_train(config, env, network, batchify):
                 rng_step = jax.random.split(_rng, config["NUM_ENVS"])
                 obsv, env_state, reward, done, info = jax.vmap(env.step)(rng_step, env_state, env_act)
                 info = jax.tree.map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
-                done = jnp.concatenate([done[agent] for agent in env.agents])
                 transition = Transition(
-                    done=done,
+                    done=jnp.concatenate([done[agent] for agent in env.agents]),
                     action=action,
                     value=value,
                     reward=jnp.concatenate([reward[agent] for agent in env.agents]),
@@ -146,8 +145,6 @@ def make_train(config, env, network, batchify):
                     info=info,
                     hstate=hstate
                 )
-                mask = done[:, None]
-                new_hstate = (1.0 - mask) * new_hstate + mask * init_hstate
                 runner_state = (train_state, env_state, obsv, new_hstate, rng)
                 return runner_state, transition
 
@@ -474,7 +471,6 @@ entropy          = {entropy}
 fps              = {fps}
 min_return_rate  = {min_return_rate}
 max_return_rate  = {max_return_rate}
-return_dist      = {return_dist}
                         """,
                         timestep=log["timestep"],
                         disc_return_mean=log["disc_return_mean"],
@@ -493,7 +489,6 @@ return_dist      = {return_dist}
                         fps=log["fps"],
                         min_return_rate=log["min_return_rate"],
                         max_return_rate=log["max_return_rate"],
-                        return_dist=return_dist,
                         ordered=True)
 
                     start_time_debug = time.time()
