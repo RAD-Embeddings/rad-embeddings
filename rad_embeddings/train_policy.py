@@ -190,7 +190,7 @@ if __name__ == "__main__":
     env = DFAWrapper(
         env=token_env,
         sampler=sampler,
-        # online_reward_fraction=config["ONLINE_REW_FRAC"]
+        rho=config["RHO_INIT"]
     )
     env = LogWrapper(env=env, config=config)
 

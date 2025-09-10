@@ -110,18 +110,20 @@ def make_train(config, env, network, batchify):
         reset_rng = jax.random.split(_rng, config["NUM_ENVS"])
         obsv, env_state = jax.vmap(env.reset)(reset_rng)
 
-        rho = jnp.full((config["NUM_ENVS"],), config["RHO_INIT"])
-        env_state = env_state.replace(
-            env_state=env_state.env_state.replace(
-                rho=rho
+        if 0 <= config.get("RHO_DECAY_RATE", -1) <= 1:
+            rho = jnp.full((config["NUM_ENVS"],), config["RHO_INIT"])
+            env_state = env_state.replace(
+                env_state=env_state.env_state.replace(
+                    rho=rho
+                )
             )
-        )
 
         # TRAIN LOOP
         def _update_step(runner_state, unused):
             # COLLECT TRAJECTORIES
-            train_state, env_state, last_obs, rng = runner_state
-            rho = env_state.env_state.rho
+            if 0 <= config.get("RHO_DECAY_RATE", -1) <= 1:
+                _, env_state, _, _ = runner_state
+                rho = env_state.env_state.rho
             def _env_step(runner_state, unused):
                 train_state, env_state, last_obs, rng = runner_state
 
@@ -140,11 +142,12 @@ def make_train(config, env, network, batchify):
                 rng, _rng = jax.random.split(rng)
                 rng_step = jax.random.split(_rng, config["NUM_ENVS"])
                 obsv, env_state, reward, done, info = jax.vmap(env.step)(rng_step, env_state, env_act)
-                env_state = env_state.replace(
-                    env_state=env_state.env_state.replace(
-                        rho=rho
+                if 0 <= config.get("RHO_DECAY_RATE", -1) <= 1:
+                    env_state = env_state.replace(
+                        env_state=env_state.env_state.replace(
+                            rho=rho
+                        )
                     )
-                )
                 info = jax.tree.map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
                 transition = Transition(
                     done=jnp.concatenate([done[agent] for agent in env.agents]),
@@ -162,23 +165,24 @@ def make_train(config, env, network, batchify):
                 _env_step, runner_state, None, config["NUM_STEPS"]
             )
 
-            n_returned_episodes = jnp.sum(traj_batch.info["returned_episode"])
-            n_episodes_with_max_returns = jnp.sum(
-                (traj_batch.info["returned_episode_returns"] * traj_batch.info["returned_episode"]) == config["MAX_REWARD"]
-            )
-            new_rho = jnp.maximum(config["RHO_INIT"] - n_episodes_with_max_returns/n_returned_episodes, 0.0)
-
-            rho = config["RHO_DECAY_RATE"] * rho + (1 - config["RHO_DECAY_RATE"]) * new_rho
-
-            train_state, env_state, last_obs, rng = runner_state
-
-            env_state = env_state.replace(
-                env_state=env_state.env_state.replace(
-                    rho=rho
+            if 0 <= config.get("RHO_DECAY_RATE", -1) <= 1:
+                old_rho = rho
+                n_returned_episodes = jnp.sum(traj_batch.info["returned_episode"])
+                n_episodes_with_max_returns = jnp.sum(
+                    (traj_batch.info["returned_episode_returns"] * traj_batch.info["returned_episode"]) == config["MAX_REWARD"]
                 )
-            )
+                new_rho = jnp.maximum(config["RHO_INIT"] - n_episodes_with_max_returns/n_returned_episodes, 0.0)
+                rho = config["RHO_DECAY_RATE"] * rho + (1 - config["RHO_DECAY_RATE"]) * new_rho
+
+                _, env_state, _, _ = runner_state
+                env_state = env_state.replace(
+                    env_state=env_state.env_state.replace(
+                        rho=rho
+                    )
+                )
 
             # CALCULATE ADVANTAGE
+            train_state, env_state, last_obs, rng = runner_state
             last_obs_batch = batchify(last_obs, env.agents)
             _, last_val = network.apply(train_state.params, last_obs_batch)
 
@@ -294,8 +298,10 @@ def make_train(config, env, network, batchify):
             metric = traj_batch.info
             rng = update_state[-1]
 
+            if 0 <= config.get("RHO_DECAY_RATE", -1) <= 1:
+                metric["rho"] = old_rho
+
             steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
-            metric["rho"] = rho
 
             if config.get("LOG"):
                 ep_len_buffer_log = deque(maxlen=steps_per_update)
@@ -352,7 +358,8 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = np.mean(info["rho"])
+                    if 0 <= config.get("RHO_DECAY_RATE", -1) <= 1:
+                        log["rho"] = np.mean(info["rho"])
 
                     log_file = Path(config.get("LOG"))
                     df = pd.DataFrame([log])
@@ -417,7 +424,8 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = np.mean(info["rho"])
+                    if 0 <= config.get("RHO_DECAY_RATE", -1) <= 1:
+                        log["rho"] = np.mean(info["rho"])
 
                     timesteps = info["timestep"][-1, :]
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
@@ -482,10 +490,10 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = np.mean(info["rho"])
-
-                    jax.debug.print(
-                        """
+                    if 0 <= config.get("RHO_DECAY_RATE", -1) <= 1:
+                        log["rho"] = np.mean(info["rho"])
+                        jax.debug.print(
+                            """
 timestep         = {timestep}
 disc_return_mean = {disc_return_mean}
 return_min       = {return_min}
@@ -505,27 +513,68 @@ min_return_rate  = {min_return_rate}
 max_return_rate  = {max_return_rate}
 return_dist      = {return_dist}
 rho              = {rho}
-                        """,
-                        timestep=log["timestep"],
-                        disc_return_mean=log["disc_return_mean"],
-                        return_min=log["return_min"],
-                        return_mean=log["return_mean"],
-                        return_max=log["return_max"],
-                        return_std=log["return_std"],
-                        ep_len_min=log["ep_len_min"],
-                        ep_len_mean=log["ep_len_mean"],
-                        ep_len_max=log["ep_len_max"],
-                        ep_len_std=log["ep_len_std"],
-                        total_loss=log["total_loss"],
-                        value_loss=log["value_loss"],
-                        actor_loss=log["actor_loss"],
-                        entropy=log["entropy"],
-                        fps=log["fps"],
-                        min_return_rate=log["min_return_rate"],
-                        max_return_rate=log["max_return_rate"],
-                        return_dist=return_dist,
-                        rho=log["rho"],
-                        ordered=True)
+                            """,
+                            timestep=log["timestep"],
+                            disc_return_mean=log["disc_return_mean"],
+                            return_min=log["return_min"],
+                            return_mean=log["return_mean"],
+                            return_max=log["return_max"],
+                            return_std=log["return_std"],
+                            ep_len_min=log["ep_len_min"],
+                            ep_len_mean=log["ep_len_mean"],
+                            ep_len_max=log["ep_len_max"],
+                            ep_len_std=log["ep_len_std"],
+                            total_loss=log["total_loss"],
+                            value_loss=log["value_loss"],
+                            actor_loss=log["actor_loss"],
+                            entropy=log["entropy"],
+                            fps=log["fps"],
+                            min_return_rate=log["min_return_rate"],
+                            max_return_rate=log["max_return_rate"],
+                            return_dist=return_dist,
+                            rho=log["rho"],
+                            ordered=True)
+                    else:
+                        jax.debug.print(
+                            """
+timestep         = {timestep}
+disc_return_mean = {disc_return_mean}
+return_min       = {return_min}
+return_mean      = {return_mean}
+return_max       = {return_max}
+return_std       = {return_std}
+ep_len_min       = {ep_len_min}
+ep_len_mean      = {ep_len_mean}
+ep_len_max       = {ep_len_max}
+ep_len_std       = {ep_len_std}
+total_loss       = {total_loss}
+value_loss       = {value_loss}
+actor_loss       = {actor_loss}
+entropy          = {entropy}
+fps              = {fps}
+min_return_rate  = {min_return_rate}
+max_return_rate  = {max_return_rate}
+return_dist      = {return_dist}
+                            """,
+                            timestep=log["timestep"],
+                            disc_return_mean=log["disc_return_mean"],
+                            return_min=log["return_min"],
+                            return_mean=log["return_mean"],
+                            return_max=log["return_max"],
+                            return_std=log["return_std"],
+                            ep_len_min=log["ep_len_min"],
+                            ep_len_mean=log["ep_len_mean"],
+                            ep_len_max=log["ep_len_max"],
+                            ep_len_std=log["ep_len_std"],
+                            total_loss=log["total_loss"],
+                            value_loss=log["value_loss"],
+                            actor_loss=log["actor_loss"],
+                            entropy=log["entropy"],
+                            fps=log["fps"],
+                            min_return_rate=log["min_return_rate"],
+                            max_return_rate=log["max_return_rate"],
+                            return_dist=return_dist,
+                            ordered=True)
 
                     start_time_debug = time.time()
 
