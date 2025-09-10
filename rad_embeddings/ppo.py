@@ -166,7 +166,7 @@ def make_train(config, env, network, batchify):
             )
             new_rho = n_episodes_with_max_returns/n_returned_episodes
 
-            rho = 0.9 * rho + 0.1 * new_rho
+            rho = 0.99 * rho + 0.01 * new_rho
 
             train_state, env_state, last_obs, rng = runner_state
 
@@ -500,7 +500,6 @@ entropy          = {entropy}
 fps              = {fps}
 min_return_rate  = {min_return_rate}
 max_return_rate  = {max_return_rate}
-return_dist      = {return_dist}
 rho              = {rho}
                         """,
                         timestep=log["timestep"],
@@ -520,7 +519,6 @@ rho              = {rho}
                         fps=log["fps"],
                         min_return_rate=log["min_return_rate"],
                         max_return_rate=log["max_return_rate"],
-                        return_dist=return_dist,
                         rho=log["rho"],
                         ordered=True)
 
