@@ -109,9 +109,11 @@ def make_train(config, env, network, batchify):
         rng, _rng = jax.random.split(rng)
         reset_rng = jax.random.split(_rng, config["NUM_ENVS"])
         obsv, env_state = jax.vmap(env.reset)(reset_rng)
+
+        rho = jnp.full((config["NUM_ENVS"],), config["RHO_INIT"])
         env_state = env_state.replace(
             env_state=env_state.env_state.replace(
-                rho=jnp.full((config["NUM_ENVS"],), config["ONLINE_REW_FRAC"])
+                rho=rho
             )
         )
 
@@ -119,7 +121,8 @@ def make_train(config, env, network, batchify):
         def _update_step(runner_state, unused):
             # COLLECT TRAJECTORIES
             train_state, env_state, last_obs, rng = runner_state
-            rho = env_state.env_state.rho
+            rho_raw = env_state.env_state.rho
+            rho = rho_raw
             def _env_step(runner_state, unused):
                 train_state, env_state, last_obs, rng = runner_state
 
@@ -164,11 +167,11 @@ def make_train(config, env, network, batchify):
             n_episodes_with_max_returns = jnp.sum(
                 (traj_batch.info["returned_episode_returns"] * traj_batch.info["returned_episode"]) == config["MAX_REWARD"]
             )
-            new_rho = config["ONLINE_REW_FRAC"] + n_episodes_with_max_returns/n_returned_episodes
+            new_rho = config["RHO_INIT"] - n_episodes_with_max_returns/n_returned_episodes
 
-            rho = config["GAMMA"] * rho + (1 - config["GAMMA"]) * new_rho
+            rho_raw = config["RHO_DECAY_RATE"] * rho_raw + (1 - config["RHO_DECAY_RATE"]) * new_rho
 
-            rho = jnp.round(rho, decimals=1)
+            rho = jnp.round(rho_raw, decimals=config["RHO_ROUND_DECIMALS"])
 
             train_state, env_state, last_obs, rng = runner_state
 
@@ -295,6 +298,8 @@ def make_train(config, env, network, batchify):
             rng = update_state[-1]
 
             steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
+            metric["rho"] = rho
+            metric["rho_raw"] = rho_raw
 
             if config.get("LOG"):
                 ep_len_buffer_log = deque(maxlen=steps_per_update)
@@ -302,7 +307,7 @@ def make_train(config, env, network, batchify):
                 disc_return_buffer_log = deque(maxlen=steps_per_update)
                 start_time_log = time.time()
 
-                def callback(info, loss_info, rho):
+                def callback(info, loss_info):
                     nonlocal start_time_log
 
                     elapsed = time.time() - start_time_log
@@ -351,7 +356,8 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = np.mean(rho)
+                    log["rho"] = np.mean(info["rho"])
+                    log["rho_raw"] = np.mean(info["rho_raw"])
 
                     log_file = Path(config.get("LOG"))
                     df = pd.DataFrame([log])
@@ -363,7 +369,7 @@ def make_train(config, env, network, batchify):
                     )
 
                     start_time_log = time.time()
-                jax.experimental.io_callback(callback, None, metric, loss_info, rho)
+                jax.experimental.io_callback(callback, None, metric, loss_info)
 
             if config.get("WANDB"):
                 ep_len_buffer_wandb = deque(maxlen=steps_per_update)
@@ -371,7 +377,7 @@ def make_train(config, env, network, batchify):
                 disc_return_buffer_wandb = deque(maxlen=steps_per_update)
                 start_time_wandb = time.time()
 
-                def callback(info, loss_info, rho):
+                def callback(info, loss_info):
                     nonlocal start_time_wandb
 
                     elapsed = time.time() - start_time_wandb
@@ -416,7 +422,8 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = np.mean(rho)
+                    log["rho"] = np.mean(info["rho"])
+                    log["rho_raw"] = np.mean(info["rho_raw"])
 
                     timesteps = info["timestep"][-1, :]
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
@@ -424,7 +431,7 @@ def make_train(config, env, network, batchify):
                     wandb.log(log, step=timestep)
 
                     start_time_wandb = time.time()
-                jax.experimental.io_callback(callback, None, metric, loss_info, rho)
+                jax.experimental.io_callback(callback, None, metric, loss_info)
             
             # Debugging mode
             if config.get("DEBUG"):
@@ -433,7 +440,7 @@ def make_train(config, env, network, batchify):
                 disc_return_buffer_debug = deque(maxlen=steps_per_update)
                 start_time_debug = time.time()
 
-                def callback(info, loss_info, rho):
+                def callback(info, loss_info):
                     nonlocal start_time_debug
 
                     elapsed = time.time() - start_time_debug
@@ -481,7 +488,8 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = np.mean(rho)
+                    log["rho"] = np.mean(info["rho"])
+                    log["rho_raw"] = np.mean(info["rho_raw"])
 
                     jax.debug.print(
                         """
@@ -503,6 +511,7 @@ fps              = {fps}
 min_return_rate  = {min_return_rate}
 max_return_rate  = {max_return_rate}
 rho              = {rho}
+rho_raw          = {rho_raw}
                         """,
                         timestep=log["timestep"],
                         disc_return_mean=log["disc_return_mean"],
@@ -522,11 +531,12 @@ rho              = {rho}
                         min_return_rate=log["min_return_rate"],
                         max_return_rate=log["max_return_rate"],
                         rho=log["rho"],
+                        rho_raw=log["rho_raw"],
                         ordered=True)
 
                     start_time_debug = time.time()
 
-                jax.debug.callback(callback, metric, loss_info, rho)
+                jax.debug.callback(callback, metric, loss_info)
 
             runner_state = (train_state, env_state, last_obs, rng)
             return runner_state, metric
