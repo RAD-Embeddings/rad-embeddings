@@ -291,7 +291,7 @@ def make_train(config, env, network, batchify):
                 disc_return_buffer_log = deque(maxlen=steps_per_update)
                 start_time_log = time.time()
 
-                def callback(info, loss_info):
+                def callback(info, loss_info, rho):
                     nonlocal start_time_log
 
                     elapsed = time.time() - start_time_log
@@ -340,6 +340,8 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
+                    log["rho"] = rho
+
                     log_file = Path(config.get("LOG"))
                     df = pd.DataFrame([log])
                     df.to_csv(
@@ -350,7 +352,7 @@ def make_train(config, env, network, batchify):
                     )
 
                     start_time_log = time.time()
-                jax.experimental.io_callback(callback, None, metric, loss_info)
+                jax.experimental.io_callback(callback, None, metric, loss_info, rho)
 
             if config.get("WANDB"):
                 ep_len_buffer_wandb = deque(maxlen=steps_per_update)
@@ -358,7 +360,7 @@ def make_train(config, env, network, batchify):
                 disc_return_buffer_wandb = deque(maxlen=steps_per_update)
                 start_time_wandb = time.time()
 
-                def callback(info, loss_info):
+                def callback(info, loss_info, rho):
                     nonlocal start_time_wandb
 
                     elapsed = time.time() - start_time_wandb
@@ -403,13 +405,15 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
+                    log["rho"] = rho
+
                     timesteps = info["timestep"][-1, :]
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
 
                     wandb.log(log, step=timestep)
 
                     start_time_wandb = time.time()
-                jax.experimental.io_callback(callback, None, metric, loss_info)
+                jax.experimental.io_callback(callback, None, metric, loss_info, rho)
             
             # Debugging mode
             if config.get("DEBUG"):
@@ -418,7 +422,7 @@ def make_train(config, env, network, batchify):
                 disc_return_buffer_debug = deque(maxlen=steps_per_update)
                 start_time_debug = time.time()
 
-                def callback(info, loss_info):
+                def callback(info, loss_info, rho):
                     nonlocal start_time_debug
 
                     elapsed = time.time() - start_time_debug
@@ -466,6 +470,8 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
+                    log["rho"] = rho
+
                     jax.debug.print(
                         """
 timestep         = {timestep}
@@ -486,6 +492,7 @@ fps              = {fps}
 min_return_rate  = {min_return_rate}
 max_return_rate  = {max_return_rate}
 return_dist      = {return_dist}
+rho              = {rho}
                         """,
                         timestep=log["timestep"],
                         disc_return_mean=log["disc_return_mean"],
@@ -505,11 +512,12 @@ return_dist      = {return_dist}
                         min_return_rate=log["min_return_rate"],
                         max_return_rate=log["max_return_rate"],
                         return_dist=return_dist,
+                        rho=log["rho"],
                         ordered=True)
 
                     start_time_debug = time.time()
 
-                jax.debug.callback(callback, metric, loss_info)
+                jax.debug.callback(callback, metric, loss_info, rho)
 
             runner_state = (train_state, env_state, last_obs, rng)
             return runner_state, metric
