@@ -1,4 +1,4 @@
-DEBUG: True
+DEBUG: False
 WANDB: True
 WANDB_ENTITY: beyazit-y-berkeley-eecs
 WANDB_PROJECT: rad-marl-jax
