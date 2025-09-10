@@ -119,7 +119,7 @@ def make_train(config, env, network, batchify):
         def _update_step(runner_state, unused):
             # COLLECT TRAJECTORIES
             train_state, env_state, last_obs, rng = runner_state
-            rho = env_state.env_state.rho
+            rho = jnp.mean(env_state.env_state.rho)
             def _env_step(runner_state, unused):
                 train_state, env_state, last_obs, rng = runner_state
 
