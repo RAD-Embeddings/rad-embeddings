@@ -168,6 +168,8 @@ def make_train(config, env, network, batchify):
 
             rho = config["GAMMA"] * rho + (1 - config["GAMMA"]) * new_rho
 
+            rho = jnp.round(rho, decimals=1)
+
             train_state, env_state, last_obs, rng = runner_state
 
             env_state = env_state.replace(
