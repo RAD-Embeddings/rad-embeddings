@@ -164,9 +164,9 @@ def make_train(config, env, network, batchify):
             n_episodes_with_max_returns = jnp.sum(
                 (traj_batch.info["returned_episode_returns"] * traj_batch.info["returned_episode"]) == config["MAX_REWARD"]
             )
-            new_rho = n_episodes_with_max_returns/n_returned_episodes
+            new_rho = config["ONLINE_REW_FRAC"] + n_episodes_with_max_returns/n_returned_episodes
 
-            rho = config["ONLINE_REW_FRAC"] - (0.95 * rho + 0.05 * new_rho)/2
+            rho = config["GAMMA"] * rho + (1 - config["GAMMA"]) * new_rho
 
             train_state, env_state, last_obs, rng = runner_state
 
