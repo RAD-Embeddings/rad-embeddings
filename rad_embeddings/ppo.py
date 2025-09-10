@@ -169,7 +169,8 @@ def make_train(config, env, network, batchify):
             new_rho = jnp.maximum(config["RHO_INIT"] - n_episodes_with_max_returns/n_returned_episodes, 0.0)
             rho = config["RHO_DECAY_RATE"] * old_rho + (1 - config["RHO_DECAY_RATE"]) * new_rho
 
-            _, env_state, _, _ = runner_state
+            train_state, env_state, last_obs, rng = runner_state
+
             env_state = env_state.replace(
                 env_state=env_state.env_state.replace(
                     rho=rho
@@ -177,7 +178,6 @@ def make_train(config, env, network, batchify):
             )
 
             # CALCULATE ADVANTAGE
-            train_state, env_state, last_obs, rng = runner_state
             last_obs_batch = batchify(last_obs, env.agents)
             _, last_val = network.apply(train_state.params, last_obs_batch)
 
