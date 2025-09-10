@@ -340,8 +340,6 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = rho
-
                     log_file = Path(config.get("LOG"))
                     df = pd.DataFrame([log])
                     df.to_csv(
@@ -404,8 +402,6 @@ def make_train(config, env, network, batchify):
                     return_dist = {i: float(counts[i])/float(n) for i in counts}
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
-
-                    log["rho"] = rho
 
                     timesteps = info["timestep"][-1, :]
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
@@ -470,8 +466,6 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = rho
-
                     jax.debug.print(
                         """
 timestep         = {timestep}
@@ -492,7 +486,6 @@ fps              = {fps}
 min_return_rate  = {min_return_rate}
 max_return_rate  = {max_return_rate}
 return_dist      = {return_dist}
-rho              = {rho}
                         """,
                         timestep=log["timestep"],
                         disc_return_mean=log["disc_return_mean"],
@@ -512,7 +505,6 @@ rho              = {rho}
                         min_return_rate=log["min_return_rate"],
                         max_return_rate=log["max_return_rate"],
                         return_dist=return_dist,
-                        rho=rho,
                         ordered=True)
 
                     start_time_debug = time.time()
