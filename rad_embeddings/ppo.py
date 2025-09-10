@@ -110,10 +110,9 @@ def make_train(config, env, network, batchify):
         reset_rng = jax.random.split(_rng, config["NUM_ENVS"])
         obsv, env_state = jax.vmap(env.reset)(reset_rng)
 
-        rho = jnp.full((config["NUM_ENVS"],), config["RHO_INIT"])
         env_state = env_state.replace(
             env_state=env_state.env_state.replace(
-                rho=rho
+                rho=jnp.full((config["NUM_ENVS"],), config["RHO_INIT"])
             )
         )
 
@@ -168,7 +167,7 @@ def make_train(config, env, network, batchify):
                 jnp.isclose(traj_batch.info["returned_episode_returns"] * traj_batch.info["returned_episode"], config["MAX_REWARD"])
             )
             new_rho = jnp.maximum(config["RHO_INIT"] - n_episodes_with_max_returns/n_returned_episodes, 0.0)
-            rho = config["RHO_DECAY_RATE"] * rho + (1 - config["RHO_DECAY_RATE"]) * new_rho
+            rho = config["RHO_DECAY_RATE"] * old_rho + (1 - config["RHO_DECAY_RATE"]) * new_rho
 
             _, env_state, _, _ = runner_state
             env_state = env_state.replace(
