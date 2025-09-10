@@ -109,6 +109,11 @@ def make_train(config, env, network, batchify):
         rng, _rng = jax.random.split(rng)
         reset_rng = jax.random.split(_rng, config["NUM_ENVS"])
         obsv, env_state = jax.vmap(env.reset)(reset_rng)
+        env_state = env_state.replace(
+            env_state=env_state.env_state.replace(
+                rho=jnp.zeros((config["NUM_ENVS"],))
+            )
+        )
 
         # TRAIN LOOP
         def _update_step(runner_state, unused):
@@ -148,8 +153,21 @@ def make_train(config, env, network, batchify):
                 _env_step, runner_state, None, config["NUM_STEPS"]
             )
 
-            # CALCULATE ADVANTAGE
+            n_returned_episodes = jnp.sum(traj_batch.info["returned_episode"])
+            n_episodes_with_max_returns = jnp.sum(
+                (traj_batch.info["returned_episode_returns"] * traj_batch.info["returned_episode"]) == config["MAX_REWARD"]
+            )
+            rho = n_episodes_with_max_returns/n_returned_episodes
+
             train_state, env_state, last_obs, rng = runner_state
+
+            env_state = env_state.replace(
+                env_state=env_state.env_state.replace(
+                    rho=jnp.full((config["NUM_ENVS"],), rho)
+                )
+            )
+
+            # CALCULATE ADVANTAGE
             last_obs_batch = batchify(last_obs, env.agents)
             _, last_val = network.apply(train_state.params, last_obs_batch)
 
@@ -322,6 +340,8 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
+                    log["rho"] = rho
+
                     log_file = Path(config.get("LOG"))
                     df = pd.DataFrame([log])
                     df.to_csv(
@@ -384,6 +404,8 @@ def make_train(config, env, network, batchify):
                     return_dist = {i: float(counts[i])/float(n) for i in counts}
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
+
+                    log["rho"] = rho
 
                     timesteps = info["timestep"][-1, :]
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
@@ -448,6 +470,8 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
+                    log["rho"] = rho
+
                     jax.debug.print(
                         """
 timestep         = {timestep}
@@ -467,6 +491,8 @@ entropy          = {entropy}
 fps              = {fps}
 min_return_rate  = {min_return_rate}
 max_return_rate  = {max_return_rate}
+return_dist      = {return_dist}
+rho              = {rho}
                         """,
                         timestep=log["timestep"],
                         disc_return_mean=log["disc_return_mean"],
@@ -485,6 +511,8 @@ max_return_rate  = {max_return_rate}
                         fps=log["fps"],
                         min_return_rate=log["min_return_rate"],
                         max_return_rate=log["max_return_rate"],
+                        return_dist=return_dist,
+                        rho=rho,
                         ordered=True)
 
                     start_time_debug = time.time()
