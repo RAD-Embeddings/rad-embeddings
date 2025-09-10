@@ -166,7 +166,7 @@ def make_train(config, env, network, batchify):
             )
             new_rho = n_episodes_with_max_returns/n_returned_episodes
 
-            rho = 0.99 * rho + 0.01 * new_rho
+            rho = config["ONLINE_REW_FRAC"] - (0.95 * rho + 0.05 * new_rho)/2
 
             train_state, env_state, last_obs, rng = runner_state
 
