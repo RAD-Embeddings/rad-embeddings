@@ -22,7 +22,6 @@ class Transition():
     log_prob: jnp.ndarray
     obs: jnp.ndarray
     info: jnp.ndarray
-    hstate: jnp.ndarray
 
 def make_train(config, env, network, batchify):
     config["NUM_AGENTS"] = env.num_agents
@@ -72,11 +71,9 @@ def make_train(config, env, network, batchify):
     def train(rng):
         # INIT NETWORK
         rng, _rng = jax.random.split(rng)
-        init_x = jax.tree.map(lambda x: jnp.stack([x] * config["NUM_ACTORS"], axis=0), env.observation_space(env.agents[0]).sample(_rng))
+        init_x = env.observation_space(env.agents[0]).sample(_rng)
         rng, _rng = jax.random.split(rng)
-        init_hstate = nn.GRUCell(features=32).initialize_carry(_rng, (config["NUM_ACTORS"], 32))
-        rng, _rng = jax.random.split(rng)
-        network_params = network.init(_rng, init_hstate, init_x)
+        network_params = network.init(_rng, init_x)
         if config.get("LR_ANNEAL_LINEAR"):
             tx = optax.chain(
                 optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
@@ -117,13 +114,13 @@ def make_train(config, env, network, batchify):
         def _update_step(runner_state, unused):
             # COLLECT TRAJECTORIES
             def _env_step(runner_state, unused):
-                train_state, env_state, last_obs, hstate, rng = runner_state
+                train_state, env_state, last_obs, rng = runner_state
 
                 obs_batch = batchify(last_obs, env.agents)
 
                 # SELECT ACTION
                 rng, _rng = jax.random.split(rng)
-                new_hstate, pi, value = network.apply(train_state.params, hstate, obs_batch)
+                pi, value = network.apply(train_state.params, obs_batch)
                 action = pi.sample(seed=_rng)
                 log_prob = pi.log_prob(action)
 
@@ -142,10 +139,9 @@ def make_train(config, env, network, batchify):
                     reward=jnp.concatenate([reward[agent] for agent in env.agents]),
                     log_prob=log_prob,
                     obs=obs_batch,
-                    info=info,
-                    hstate=hstate
+                    info=info
                 )
-                runner_state = (train_state, env_state, obsv, new_hstate, rng)
+                runner_state = (train_state, env_state, obsv, rng)
                 return runner_state, transition
 
             runner_state, traj_batch = jax.lax.scan(
@@ -153,9 +149,9 @@ def make_train(config, env, network, batchify):
             )
 
             # CALCULATE ADVANTAGE
-            train_state, env_state, last_obs, hstate, rng = runner_state
+            train_state, env_state, last_obs, rng = runner_state
             last_obs_batch = batchify(last_obs, env.agents)
-            _, _, last_val = network.apply(train_state.params, hstate, last_obs_batch)
+            _, last_val = network.apply(train_state.params, last_obs_batch)
 
             def _calculate_gae(traj_batch, last_val):
                 def _get_advantages(gae_and_next_value, transition):
@@ -190,7 +186,7 @@ def make_train(config, env, network, batchify):
 
                     def _loss_fn(params, traj_batch, gae, targets):
                         # RERUN NETWORK
-                        _, pi, value = network.apply(params, traj_batch.hstate, traj_batch.obs)
+                        pi, value = network.apply(params, traj_batch.obs)
                         log_prob = pi.log_prob(traj_batch.action)
 
                         # CALCULATE VALUE LOSS
@@ -495,11 +491,11 @@ max_return_rate  = {max_return_rate}
 
                 jax.debug.callback(callback, metric, loss_info)
 
-            runner_state = (train_state, env_state, last_obs, hstate, rng)
+            runner_state = (train_state, env_state, last_obs, rng)
             return runner_state, metric
 
         rng, _rng = jax.random.split(rng)
-        runner_state = (train_state, env_state, obsv, init_hstate, _rng)
+        runner_state = (train_state, env_state, obsv, _rng)
         runner_state, metric = jax.lax.scan(
             _update_step, runner_state, None, config["NUM_UPDATES"]
         )
