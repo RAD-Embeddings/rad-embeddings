@@ -74,7 +74,7 @@ def make_train(config, env, network, batchify):
         rng, _rng = jax.random.split(rng)
         init_x = jax.tree.map(lambda x: jnp.stack([x] * config["NUM_ACTORS"], axis=0), env.observation_space(env.agents[0]).sample(_rng))
         rng, _rng = jax.random.split(rng)
-        init_hstate = nn.GRUCell(features=config["TASK_FEAT_HIDDEN_DIM"]).initialize_carry(_rng, (config["NUM_ACTORS"], config["TASK_FEAT_HIDDEN_DIM"]))
+        init_hstate = nn.GRUCell(features=32).initialize_carry(_rng, (config["NUM_ACTORS"], 32))
         rng, _rng = jax.random.split(rng)
         network_params = network.init(_rng, init_hstate, init_x)
         if config.get("LR_ANNEAL_LINEAR"):

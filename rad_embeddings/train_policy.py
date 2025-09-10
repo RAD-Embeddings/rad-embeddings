@@ -223,7 +223,7 @@ if __name__ == "__main__":
         key, subkey = jax.random.split(key)
         init_x = jax.tree.map(lambda x: jnp.stack([x] * env.num_agents * config["NUM_ENVS"], axis=0), env.observation_space(env.agents[0]).sample(subkey))
         key, subkey = jax.random.split(key)
-        init_hstate = nn.GRUCell(features=config["TASK_FEAT_HIDDEN_DIM"]).initialize_carry(subkey, (env.num_agents * config["NUM_ENVS"], config["TASK_FEAT_HIDDEN_DIM"]))
+        init_hstate = nn.GRUCell(features=32).initialize_carry(subkey, (env.num_agents * config["NUM_ENVS"], 32))
         key, subkey = jax.random.split(key)
         params = network.init(subkey, init_hstate, init_x)
         summarize_params(params)
