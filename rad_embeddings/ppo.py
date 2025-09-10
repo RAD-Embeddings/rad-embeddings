@@ -157,9 +157,13 @@ def make_train(config, env, network, batchify):
             n_episodes_with_max_returns = jnp.sum(
                 (traj_batch.info["returned_episode_returns"] * traj_batch.info["returned_episode"]) == config["MAX_REWARD"]
             )
-            rho = n_episodes_with_max_returns/n_returned_episodes
+            new_rho = n_episodes_with_max_returns/n_returned_episodes
 
             train_state, env_state, last_obs, rng = runner_state
+
+            old_rho = env_state.env_state.rho
+
+            rho = 0.5 * old_rho + 0.5 * new_rho
 
             env_state = env_state.replace(
                 env_state=env_state.env_state.replace(
