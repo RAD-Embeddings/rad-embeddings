@@ -27,60 +27,40 @@ class ActorCritic(nn.Module):
     encoder_params: FrozenDict
     n_agents: int
     deterministic: bool = False
-
-    def setup(self):
-        padding = "VALID"
-        self.cnn = nn.Sequential([
-            nn.Conv(16, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
-            nn.relu,
-            nn.Conv(32, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
-            nn.relu,
-            nn.Conv(64, (2, 2), padding=padding, kernel_init=orthogonal(np.sqrt(2))),
-            nn.relu,
-            lambda x: x.reshape((x.shape[0], -1)),
-        ])
-        self.agent_feat = nn.Embed(self.n_agents, 32)
-        self.value_net = nn.Sequential([
-            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.relu,
-            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.relu,
-            nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
-        ])
-        self.policy_net = nn.Sequential([
-            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.relu,
-            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.relu,
-            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.relu,
-            nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
-        ])
-        self.task_feat = nn.Sequential([
-            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.tanh,
-            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
-            nn.tanh,
-            nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
-        ])
+    padding: str = "VALID"
 
     @nn.compact
     def __call__(self, batch):
-        obs_batch = batch["obs"]
+
+        id_batch = batch["obs"]["id"]
+        if id_batch.ndim == 0:
+            id_batch = id_batch[None, ...] # -> (1,)
+        elif id_batch.ndim != 1:
+            raise ValueError(f"Expected () or (B,), got {id_batch.shape} for agent_id")
+        id_embed = nn.Embed(self.n_agents, 32)(id_batch)
+
+        obs_batch = batch["obs"]["obs"]
         if obs_batch.ndim == 3: # (C, H, W)
             obs_batch = obs_batch[None, ...] # -> (1, C, H, W)
         elif obs_batch.ndim != 4:
             raise ValueError(f"Expected (C, H, W) or (B, C, H, W), got {obs_batch.shape} for obs")
         obs_batch = jnp.transpose(obs_batch, (0, 2, 3, 1)) # -> (B, H, W, C)
-        obs_feat = self.cnn(obs_batch)
+
+        obs_feat = nn.Sequential([
+            nn.Conv(16, (2, 2), padding=self.padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.relu,
+            nn.Conv(32, (2, 2), padding=self.padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.relu,
+            nn.Conv(64, (2, 2), padding=self.padding, kernel_init=orthogonal(np.sqrt(2))),
+            nn.relu,
+            lambda x: x.reshape((x.shape[0], -1)),
+        ])(obs_batch)
 
         guarantee_batch = batch["guarantee"]
         guarantee_graph = batch2graph(guarantee_batch)
         guarantee_feat = jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, guarantee_graph))
 
-        task_feat = guarantee_feat
-
-        task_feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
+        task_feat = jnp.concatenate([obs_feat, guarantee_feat, id_embed], axis=-1)
 
         if "assume" in batch:
             batch_size, rad_size = guarantee_feat.shape
@@ -90,21 +70,33 @@ class ActorCritic(nn.Module):
             assume_feat = assume_feat.reshape(batch_size, -1, rad_size).reshape(batch_size, -1)
             task_feat = jnp.concatenate([task_feat, assume_feat], axis=-1)
 
-        if "agent_id" in batch:
-            agent_id_batch = batch["agent_id"]
-            if agent_id_batch.ndim == 0:
-                agent_id_batch = agent_id_batch[None, ...] # -> (1,)
-            elif agent_id_batch.ndim != 1:
-                raise ValueError(f"Expected () or (B,), got {agent_id_batch.shape} for agent_id")
-            agent_feat = self.agent_feat(agent_id_batch)
-            task_feat = jnp.concatenate([task_feat, agent_feat], axis=-1)
-
-        task_feat = self.task_feat(task_feat)
+        task_feat = nn.Sequential([
+            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.tanh,
+            nn.Dense(256, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.tanh,
+            nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
+        ])(task_feat)
 
         feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
 
-        value = self.value_net(feat)
-        logits = self.policy_net(feat)
+        value = nn.Sequential([
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))
+        ])(feat)
+
+        logits = nn.Sequential([
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
+            nn.relu,
+            nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
+        ])(feat)
 
         if self.deterministic:
             action = jnp.argmax(logits, axis=-1)
@@ -116,21 +108,22 @@ class ActorCritic(nn.Module):
 
 def _batchify(obss: dict, agents):
 
-    obs_batch = jnp.stack([obss[agent]["obs"] for agent in agents], axis=0)
+    obs_batch = jnp.stack([obss[agent]["obs"]["obs"] for agent in agents], axis=0)
     obs_batch = obs_batch if obs_batch.ndim == 4 else jnp.concatenate(obs_batch, axis=0)
+
+    id_batch = jnp.stack([obss[agent]["obs"]["id"] for agent in agents], axis=0)
+    id_batch = id_batch if id_batch.ndim == 1 else jnp.concatenate(id_batch, axis=0)
 
     guarantee_batch = list2batch([obss[agent]["guarantee"] for agent in agents])
 
-    obs = {"obs": obs_batch, "guarantee": guarantee_batch}
+    obs = {
+        "obs": {"id": id_batch, "obs": obs_batch},
+        "guarantee": guarantee_batch
+    }
 
     if "assume" in obss[agents[0]]:
         assume_batch = list2batch([obss[agent]["assume"] for agent in agents])
         obs["assume"] = assume_batch
-
-    if "agent_id" in obss[agents[0]]:
-        agent_id_batch = jnp.stack([obss[agent]["agent_id"] for agent in agents], axis=0)
-        agent_id_batch = agent_id_batch if agent_id_batch.ndim == 1 else jnp.concatenate(agent_id_batch, axis=0)
-        obs["agent_id"] = agent_id_batch
 
     return obs
 
@@ -197,7 +190,7 @@ if __name__ == "__main__":
     env = DFAWrapper(
         env=token_env,
         sampler=sampler,
-        max_coop_reward=config["MAX_COOP_REWARD"]
+        online_reward_fraction=config["ONLINE_REW_FRAC"]
     )
     env = LogWrapper(env=env, config=config)
 
