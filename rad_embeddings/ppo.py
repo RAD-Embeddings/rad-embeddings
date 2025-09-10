@@ -111,7 +111,7 @@ def make_train(config, env, network, batchify):
         obsv, env_state = jax.vmap(env.reset)(reset_rng)
         env_state = env_state.replace(
             env_state=env_state.env_state.replace(
-                rho=jnp.zeros((config["NUM_ENVS"],))
+                rho=jnp.full((config["NUM_ENVS"],), config["ONLINE_REW_FRAC"])
             )
         )
 
@@ -119,7 +119,7 @@ def make_train(config, env, network, batchify):
         def _update_step(runner_state, unused):
             # COLLECT TRAJECTORIES
             train_state, env_state, last_obs, rng = runner_state
-            rho = jnp.mean(env_state.env_state.rho)
+            rho = env_state.env_state.rho
             def _env_step(runner_state, unused):
                 train_state, env_state, last_obs, rng = runner_state
 
@@ -140,7 +140,7 @@ def make_train(config, env, network, batchify):
                 obsv, env_state, reward, done, info = jax.vmap(env.step)(rng_step, env_state, env_act)
                 env_state = env_state.replace(
                     env_state=env_state.env_state.replace(
-                        rho=jnp.full((config["NUM_ENVS"],), rho)
+                        rho=rho
                     )
                 )
                 info = jax.tree.map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
@@ -172,7 +172,7 @@ def make_train(config, env, network, batchify):
 
             env_state = env_state.replace(
                 env_state=env_state.env_state.replace(
-                    rho=jnp.full((config["NUM_ENVS"],), rho)
+                    rho=rho
                 )
             )
 
@@ -349,7 +349,7 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = rho
+                    log["rho"] = np.mean(rho)
 
                     log_file = Path(config.get("LOG"))
                     df = pd.DataFrame([log])
@@ -414,7 +414,7 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = rho
+                    log["rho"] = np.mean(rho)
 
                     timesteps = info["timestep"][-1, :]
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
@@ -479,7 +479,7 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = rho
+                    log["rho"] = np.mean(rho)
 
                     jax.debug.print(
                         """
