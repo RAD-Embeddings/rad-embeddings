@@ -171,9 +171,10 @@ def make_train(config, env, network, batchify):
                 0.0
             )
             rho = jnp.minimum(
-                config["RHO_DECAY_RATE"] * old_rho + (1 - config["RHO_DECAY_RATE"]) * new_rho,
+                config["RHO_DECAY_COEF"] * old_rho + (1 - config["RHO_DECAY_COEF"]) * new_rho,
                 old_rho
             )
+            rho = rho * (rho > config["RHO_TURNOFF_VAL"])
 
             train_state, env_state, last_obs, rng = runner_state
 
