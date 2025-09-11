@@ -22,7 +22,7 @@ DFA_SIZE_P: null
 DFA_PROB_STUTTER: 1
 RHO_INIT: 0.5
 RHO_DECAY_COEF: 1.0
-RHO_TURNOFF_VAL: 0.0
+P_TURNOFF_VAL: 0.5
 MAX_REWARD: 2.0
 ENCODER_DIM: 32
 ENCODER_FILE_PREFIX: encoder_storage/encoder_rad_dim_32_max_size_10_n_tokens_10_params
