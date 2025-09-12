@@ -78,7 +78,7 @@ class ActorCritic(nn.Module):
             nn.Dense(32, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))
         ])(task_feat)
 
-        feat = jnp.concatenate([obs_feat, task_feat], axis=-1)
+        feat = jnp.concatenate([obs_feat, task_feat, id_embed], axis=-1)
 
         value = nn.Sequential([
             nn.Dense(64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)),
