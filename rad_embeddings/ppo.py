@@ -304,6 +304,7 @@ def make_train(config, env, network, batchify):
             rng = update_state[-1]
 
             metric["rho"] = old_rho
+            metric["ent_coef"] = config["ENT_COEF"] * (1.0 - (step_idx * config["ENT_COEF_DECAY"]) / config["NUM_UPDATES"])
 
             steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
 
@@ -363,6 +364,7 @@ def make_train(config, env, network, batchify):
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
                     log["rho"] = np.mean(info["rho"])
+                    log["ent_coef"] = np.mean(info["ent_coef"])
 
                     log_file = Path(config.get("LOG"))
                     df = pd.DataFrame([log])
@@ -428,6 +430,7 @@ def make_train(config, env, network, batchify):
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
                     log["rho"] = np.mean(info["rho"])
+                    log["ent_coef"] = np.mean(info["ent_coef"])
 
                     timesteps = info["timestep"][-1, :]
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
@@ -493,6 +496,7 @@ def make_train(config, env, network, batchify):
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
                     log["rho"] = np.mean(info["rho"])
+                    log["ent_coef"] = np.mean(info["ent_coef"])
 
                     jax.debug.print(
                         """
@@ -510,6 +514,7 @@ total_loss       = {total_loss}
 value_loss       = {value_loss}
 actor_loss       = {actor_loss}
 entropy          = {entropy}
+ent_coef         = {ent_coef}
 fps              = {fps}
 min_return_rate  = {min_return_rate}
 max_return_rate  = {max_return_rate}
@@ -530,6 +535,7 @@ rho              = {rho}
                         value_loss=log["value_loss"],
                         actor_loss=log["actor_loss"],
                         entropy=log["entropy"],
+                        ent_coef=log["ent_coef"],
                         fps=log["fps"],
                         min_return_rate=log["min_return_rate"],
                         max_return_rate=log["max_return_rate"],
