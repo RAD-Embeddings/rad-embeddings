@@ -117,7 +117,7 @@ def make_train(config, env, network, batchify):
         )
 
         # TRAIN LOOP
-        def _update_step(runner_state, unused):
+        def _update_step(runner_state, step_idx):
             # COLLECT TRAJECTORIES
             _, env_state, _, _ = runner_state
             rho = env_state.env_state.rho
@@ -251,10 +251,12 @@ def make_train(config, env, network, batchify):
                         loss_actor = loss_actor.mean()
                         entropy = pi.entropy().mean()
 
+                        ent_coef = config["ENT_COEF"] * (1.0 - (step_idx * config["ENT_COEF_DECAY"]) / config["NUM_UPDATES"])
+
                         total_loss = (
                             loss_actor
                             + config["VF_COEF"] * value_loss
-                            - config["ENT_COEF"] * entropy
+                            - ent_coef * entropy
                         )
                         return total_loss, (value_loss, loss_actor, entropy)
 
@@ -545,7 +547,7 @@ rho              = {rho}
         rng, _rng = jax.random.split(rng)
         runner_state = (train_state, env_state, obsv, _rng)
         runner_state, metric = jax.lax.scan(
-            _update_step, runner_state, None, config["NUM_UPDATES"]
+            _update_step, runner_state, jnp.arange(config["NUM_UPDATES"])
         )
         return {"runner_state": runner_state, "metrics": metric}
 
