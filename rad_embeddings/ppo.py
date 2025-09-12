@@ -251,7 +251,7 @@ def make_train(config, env, network, batchify):
                         loss_actor = loss_actor.mean()
                         entropy = pi.entropy().mean()
 
-                        ent_coef = config["ENT_COEF"] * (1.0 - (step_idx * config["ENT_COEF_DECAY"]) / config["NUM_UPDATES"])
+                        ent_coef = config["ENT_COEF"] * (1.0 - (step_idx * config["ENT_COEF_DECAY"]) / config["NUM_UPDATES"])**4
 
                         total_loss = (
                             loss_actor
@@ -304,7 +304,7 @@ def make_train(config, env, network, batchify):
             rng = update_state[-1]
 
             metric["rho"] = old_rho
-            metric["ent_coef"] = config["ENT_COEF"] * (1.0 - (step_idx * config["ENT_COEF_DECAY"]) / config["NUM_UPDATES"])
+            metric["ent_coef"] = config["ENT_COEF"] * (1.0 - (step_idx * config["ENT_COEF_DECAY"]) / config["NUM_UPDATES"])**4
 
             steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
 
