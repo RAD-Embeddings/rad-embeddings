@@ -26,8 +26,8 @@ P_TURNOFF_VAL: 0.5
 MAX_REWARD: 2.0
 ENCODER_DIM: 32
 ENCODER_FILE_PREFIX: encoder_storage/encoder_rad_dim_32_max_size_10_n_tokens_10_params
-SAVE_FILE_PREFIX: exp_rho_storage/rho_1.0_policy_params
-LOG_FILE_PREFIX: exp_rho_storage/rho_1.0_log
+SAVE_FILE_PREFIX: exp_rho_storage/rho_policy_params
+LOG_FILE_PREFIX: exp_rho_storage/rho_log
 # PPO PARAMS
 LR: 0.00004
 NUM_ENVS: 64
