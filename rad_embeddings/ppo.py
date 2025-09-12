@@ -221,6 +221,12 @@ def make_train(config, env, network, batchify):
                     traj_batch, advantages, targets = batch_info
 
                     def _loss_fn(params, traj_batch, gae, targets):
+                        # PREPARE MASK
+                        mask = jnp.zeros(
+                            (config["NUM_ENVS"], config["NUM_AGENTS"])
+                        ).at[:, step_idx % config["NUM_AGENTS"]].set(1).astype(jnp.float32).flatten()
+                        mask = jnp.tile(mask, config["NUM_STEPS"] // config["NUM_MINIBATCHES"])
+
                         # RERUN NETWORK
                         pi, value = network.apply(params, traj_batch.obs)
                         log_prob = pi.log_prob(traj_batch.action)
@@ -231,9 +237,11 @@ def make_train(config, env, network, batchify):
                         ).clip(-config["CLIP_EPS"], config["CLIP_EPS"])
                         value_losses = jnp.square(value - targets)
                         value_losses_clipped = jnp.square(value_pred_clipped - targets)
-                        value_loss = (
-                            0.5 * jnp.maximum(value_losses, value_losses_clipped).mean()
-                        )
+                        value_loss = jnp.maximum(value_losses, value_losses_clipped)
+                        value_loss = 0.5 * (value_loss * mask).sum() / mask.sum()
+                        # value_loss = (
+                        #     0.5 * jnp.maximum(value_losses, value_losses_clipped).mean()
+                        # )
 
                         # CALCULATE ACTOR LOSS
                         ratio = jnp.exp(log_prob - traj_batch.log_prob)
@@ -248,8 +256,10 @@ def make_train(config, env, network, batchify):
                             * gae
                         )
                         loss_actor = -jnp.minimum(loss_actor1, loss_actor2)
-                        loss_actor = loss_actor.mean()
-                        entropy = pi.entropy().mean()
+                        loss_actor = (loss_actor * mask).sum() / mask.sum()
+                        # loss_actor = loss_actor.mean()
+                        entropy = (pi.entropy() * mask).sum() / mask.sum()
+                        # entropy = pi.entropy().mean()
 
                         ent_coef = config["ENT_COEF"] * (1.0 - (step_idx * config["ENT_COEF_DECAY"]) / config["NUM_UPDATES"])
 
