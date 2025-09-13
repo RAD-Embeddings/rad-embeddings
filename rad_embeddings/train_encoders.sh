@@ -7,7 +7,7 @@ if [ -z "$DEVICE_ID" ]; then
   exit 1
 fi
 
-mkdir -p encoder_storage
+mkdir -p storage
 
 for seed in {0..9}; do
   echo "Running seed $seed on GPU $DEVICE_ID..."
