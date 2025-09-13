@@ -11,9 +11,9 @@ from encoder import Encoder
 from dfax import batch2graph
 from dfa_gym import DFABisimEnv
 from wrappers import LogWrapper
-from utils import summarize_params
 from dfax.samplers import RADSampler
 import flax.serialization as serialization
+from flax.traverse_util import flatten_dict
 from flax.linen.initializers import constant, orthogonal
 
 
@@ -89,8 +89,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save-dir",
         type=str,
-        default="encoder_storage",
-        help="Directory for saving the trained encoder (default: encoder_storage)"
+        default="storage",
+        help="Directory for saving the trained encoder (default: storage)"
     )
     parser.add_argument(
         "--rad-dim",
@@ -123,8 +123,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--log",
         type=str,
-        default="encoder_log.csv",
-        help="Log csv name (default: encoder_log.csv)"
+        default="log.csv",
+        help="Log csv name (default: log.csv)"
     )
     args = parser.parse_args()
 
@@ -157,7 +157,13 @@ if __name__ == "__main__":
         init_x = env.observation_space(env.agents[0]).sample(subkey)
         key, subkey = jax.random.split(key)
         params = network.init(subkey, init_x)
-        summarize_params(params)
+        flat = flatten_dict(params, sep="/")
+        total = 0
+        for k, v in flat.items():
+            count = v.size
+            total += count
+            print(f"{k:60} {v.shape} {v.dtype} ({count:,} params)")
+        print(f"\nTotal parameters: {total:,}")
     
     train_jit = jax.jit(make_train(config, env, network, _batchify))
     out = train_jit(key)

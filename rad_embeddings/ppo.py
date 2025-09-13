@@ -41,58 +41,16 @@ def make_train(config, env, network, batchify):
         )
         return config["LR"] * frac
 
-    def exponential_schedule(count):
-        updates_done = count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"])
-        return config["LR"] * jnp.exp(-config["EXP_DECAY_RATE"] * updates_done)
-
-    def cosine_schedule(count):
-        updates_done = count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"])
-        cosine_decay = 0.5 * (1 + jnp.cos(jnp.pi * updates_done / config["NUM_UPDATES"]))
-        return config["LR"] * cosine_decay
-
-    def warmup_schedule(count):
-        updates_done = count // (config["NUM_MINIBATCHES"] * config["UPDATE_EPOCHS"])
-        updates_done = jnp.minimum(updates_done, config["NUM_UPDATES"])
-
-        warmup_updates = (config["LR_ANNEAL_WARMUP_PARAM"] * config["NUM_UPDATES"])
-        min_frac = config.get("LR_ANNEAL_MIN_FRAC", 0.0)
-
-        warmup_lr = config["LR"] * (updates_done / jnp.maximum(1, warmup_updates))
-
-        progress = (updates_done - warmup_updates) / jnp.maximum(1, config["NUM_UPDATES"] - warmup_updates)
-        progress = jnp.clip(progress, 0.0, 1.0)
-
-        cosine_part = 0.5 * (1.0 + jnp.cos(jnp.pi * progress))
-        post_warmup_lr = config["LR"] * (min_frac + (1.0 - min_frac) * cosine_part)
-
-        return jnp.where(updates_done < warmup_updates, warmup_lr, post_warmup_lr)
-
-
     def train(rng):
         # INIT NETWORK
         rng, _rng = jax.random.split(rng)
         init_x = env.observation_space(env.agents[0]).sample(_rng)
         rng, _rng = jax.random.split(rng)
         network_params = network.init(_rng, init_x)
-        if config.get("LR_ANNEAL_LINEAR"):
+        if config["ANNEAL_LR"]:
             tx = optax.chain(
                 optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
                 optax.adam(learning_rate=linear_schedule, eps=1e-5),
-            )
-        elif config.get("LR_ANNEAL_EXP"):
-            tx = optax.chain(
-                optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
-                optax.adam(learning_rate=exponential_schedule, eps=1e-5),
-            )
-        elif config.get("LR_ANNEAL_COS"):
-            tx = optax.chain(
-                optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
-                optax.adam(learning_rate=cosine_schedule, eps=1e-5),
-            )
-        elif config.get("LR_ANNEAL_WARMUP"):
-            tx = optax.chain(
-                optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
-                optax.adam(learning_rate=warmup_schedule, eps=1e-5),
             )
         else:
             tx = optax.chain(
@@ -110,17 +68,9 @@ def make_train(config, env, network, batchify):
         reset_rng = jax.random.split(_rng, config["NUM_ENVS"])
         obsv, env_state = jax.vmap(env.reset)(reset_rng)
 
-        env_state = env_state.replace(
-            env_state=env_state.env_state.replace(
-                rho=jnp.full((config["NUM_ENVS"],), config["RHO_INIT"])
-            )
-        )
-
         # TRAIN LOOP
-        def _update_step(runner_state, step_idx):
+        def _update_step(runner_state, unused):
             # COLLECT TRAJECTORIES
-            _, env_state, _, _ = runner_state
-            rho = env_state.env_state.rho
             def _env_step(runner_state, unused):
                 train_state, env_state, last_obs, rng = runner_state
 
@@ -139,11 +89,6 @@ def make_train(config, env, network, batchify):
                 rng, _rng = jax.random.split(rng)
                 rng_step = jax.random.split(_rng, config["NUM_ENVS"])
                 obsv, env_state, reward, done, info = jax.vmap(env.step)(rng_step, env_state, env_act)
-                env_state = env_state.replace(
-                    env_state=env_state.env_state.replace(
-                        rho=rho
-                    )
-                )
                 info = jax.tree.map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
                 transition = Transition(
                     done=jnp.concatenate([done[agent] for agent in env.agents]),
@@ -161,31 +106,8 @@ def make_train(config, env, network, batchify):
                 _env_step, runner_state, None, config["NUM_STEPS"]
             )
 
-            old_rho = rho
-            n_returned_episodes = jnp.sum(traj_batch.info["returned_episode"])
-            n_episodes_with_max_returns = jnp.sum(
-                jnp.isclose(traj_batch.info["returned_episode_returns"] * traj_batch.info["returned_episode"], config["MAX_REWARD"])
-            )
-            p_hat = n_episodes_with_max_returns/n_returned_episodes
-            new_rho = jnp.maximum(
-                config["RHO_INIT"] - p_hat,
-                0.0
-            )
-            rho = jnp.minimum(
-                config["RHO_DECAY_COEF"] * old_rho + (1 - config["RHO_DECAY_COEF"]) * new_rho,
-                old_rho
-            )
-            rho = rho * (p_hat < config["P_TURNOFF_VAL"])
-
-            train_state, env_state, last_obs, rng = runner_state
-
-            env_state = env_state.replace(
-                env_state=env_state.env_state.replace(
-                    rho=rho
-                )
-            )
-
             # CALCULATE ADVANTAGE
+            train_state, env_state, last_obs, rng = runner_state
             last_obs_batch = batchify(last_obs, env.agents)
             _, last_val = network.apply(train_state.params, last_obs_batch)
 
@@ -221,12 +143,6 @@ def make_train(config, env, network, batchify):
                     traj_batch, advantages, targets = batch_info
 
                     def _loss_fn(params, traj_batch, gae, targets):
-                        # PREPARE MASK
-                        mask = jnp.zeros(
-                            (config["NUM_ENVS"], config["NUM_AGENTS"])
-                        ).at[:, step_idx % config["NUM_AGENTS"]].set(1).astype(jnp.float32).flatten()
-                        mask = jnp.tile(mask, config["NUM_STEPS"] // config["NUM_MINIBATCHES"])
-
                         # RERUN NETWORK
                         pi, value = network.apply(params, traj_batch.obs)
                         log_prob = pi.log_prob(traj_batch.action)
@@ -237,11 +153,9 @@ def make_train(config, env, network, batchify):
                         ).clip(-config["CLIP_EPS"], config["CLIP_EPS"])
                         value_losses = jnp.square(value - targets)
                         value_losses_clipped = jnp.square(value_pred_clipped - targets)
-                        value_loss = jnp.maximum(value_losses, value_losses_clipped)
-                        value_loss = 0.5 * (value_loss * mask).sum() / mask.sum()
-                        # value_loss = (
-                        #     0.5 * jnp.maximum(value_losses, value_losses_clipped).mean()
-                        # )
+                        value_loss = (
+                            0.5 * jnp.maximum(value_losses, value_losses_clipped).mean()
+                        )
 
                         # CALCULATE ACTOR LOSS
                         ratio = jnp.exp(log_prob - traj_batch.log_prob)
@@ -256,17 +170,13 @@ def make_train(config, env, network, batchify):
                             * gae
                         )
                         loss_actor = -jnp.minimum(loss_actor1, loss_actor2)
-                        loss_actor = (loss_actor * mask).sum() / mask.sum()
-                        # loss_actor = loss_actor.mean()
-                        entropy = (pi.entropy() * mask).sum() / mask.sum()
-                        # entropy = pi.entropy().mean()
-
-                        ent_coef = config["ENT_COEF"] * (1.0 - (step_idx * config["ENT_COEF_DECAY"]) / config["NUM_UPDATES"])
+                        loss_actor = loss_actor.mean()
+                        entropy = pi.entropy().mean()
 
                         total_loss = (
                             loss_actor
                             + config["VF_COEF"] * value_loss
-                            - ent_coef * entropy
+                            - config["ENT_COEF"] * entropy
                         )
                         return total_loss, (value_loss, loss_actor, entropy)
 
@@ -312,9 +222,6 @@ def make_train(config, env, network, batchify):
             train_state = update_state[0]
             metric = traj_batch.info
             rng = update_state[-1]
-
-            metric["rho"] = old_rho
-            metric["ent_coef"] = config["ENT_COEF"] * (1.0 - (step_idx * config["ENT_COEF_DECAY"]) / config["NUM_UPDATES"])
 
             steps_per_update = config["NUM_ENVS"] * config["NUM_STEPS"]
 
@@ -372,9 +279,6 @@ def make_train(config, env, network, batchify):
                     return_dist = {i: float(counts[i])/float(n) for i in counts}
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
-
-                    log["rho"] = np.mean(info["rho"])
-                    log["ent_coef"] = np.mean(info["ent_coef"])
 
                     log_file = Path(config.get("LOG"))
                     df = pd.DataFrame([log])
@@ -439,9 +343,6 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = np.mean(info["rho"])
-                    log["ent_coef"] = np.mean(info["ent_coef"])
-
                     timesteps = info["timestep"][-1, :]
                     timestep = int(np.sum(timesteps) / config["NUM_AGENTS"])
 
@@ -505,9 +406,6 @@ def make_train(config, env, network, batchify):
                     log["min_return_rate"] = return_dist[np.min(returns)]
                     log["max_return_rate"] = return_dist[np.max(returns)]
 
-                    log["rho"] = np.mean(info["rho"])
-                    log["ent_coef"] = np.mean(info["ent_coef"])
-
                     jax.debug.print(
                         """
 timestep         = {timestep}
@@ -524,12 +422,10 @@ total_loss       = {total_loss}
 value_loss       = {value_loss}
 actor_loss       = {actor_loss}
 entropy          = {entropy}
-ent_coef         = {ent_coef}
 fps              = {fps}
 min_return_rate  = {min_return_rate}
 max_return_rate  = {max_return_rate}
 return_dist      = {return_dist}
-rho              = {rho}
                         """,
                         timestep=log["timestep"],
                         disc_return_mean=log["disc_return_mean"],
@@ -545,12 +441,10 @@ rho              = {rho}
                         value_loss=log["value_loss"],
                         actor_loss=log["actor_loss"],
                         entropy=log["entropy"],
-                        ent_coef=log["ent_coef"],
                         fps=log["fps"],
                         min_return_rate=log["min_return_rate"],
                         max_return_rate=log["max_return_rate"],
                         return_dist=return_dist,
-                        rho=log["rho"],
                         ordered=True)
 
                     start_time_debug = time.time()
@@ -563,7 +457,7 @@ rho              = {rho}
         rng, _rng = jax.random.split(rng)
         runner_state = (train_state, env_state, obsv, _rng)
         runner_state, metric = jax.lax.scan(
-            _update_step, runner_state, jnp.arange(config["NUM_UPDATES"])
+            _update_step, runner_state, None, config["NUM_UPDATES"]
         )
         return {"runner_state": runner_state, "metrics": metric}
 
