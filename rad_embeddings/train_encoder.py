@@ -135,7 +135,7 @@ if __name__ == "__main__":
     if config["WANDB"]:
         wandb.init(
             entity="beyazit-y-berkeley-eecs",
-            project="rad-marl-jax",
+            project="rad-jax",
             config=config
         )
 
