@@ -11,10 +11,6 @@ from flax.traverse_util import flatten_dict
 from encoder import EncoderModule, ActorCritic
 
 
-def _batchify(obss: dict, agents):
-    return obss[agents[0]]
-
-
 if __name__ == "__main__":
     config = {
         "LR": 1e-3,
@@ -112,7 +108,7 @@ if __name__ == "__main__":
             print(f"{k:60} {v.shape} {v.dtype} ({count:,} params)")
         print(f"\nTotal parameters: {total:,}")
     
-    train_jit = jax.jit(make_train(config, env, network, _batchify))
+    train_jit = jax.jit(make_train(config, env, network))
     out = train_jit(key)
 
     os.makedirs(args.save_dir, exist_ok=True)

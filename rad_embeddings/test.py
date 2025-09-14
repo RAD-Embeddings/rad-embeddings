@@ -2,7 +2,6 @@ import jax
 import argparse
 from encoder import Encoder
 from dfa_gym import DFABisimEnv
-from train_encoder import _batchify
 from dfax.samplers import RADSampler
 
 
@@ -59,7 +58,7 @@ if __name__ == "__main__":
         generated_str = []
         done = False
         while not done:
-            problem = _batchify(obs, env.agents)
+            problem = obs[env.agents[0]]
             action = encoder.solve(problem)
             feat_l = encoder(problem["graph_l"])
             feat_r = encoder(problem["graph_r"])

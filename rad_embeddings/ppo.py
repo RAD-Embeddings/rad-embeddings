@@ -13,6 +13,10 @@ from collections import deque, Counter
 from flax.training.train_state import TrainState
 
 
+def batchify(obss: dict, agents):
+    return obss[agents[0]]
+
+
 @struct.dataclass
 class Transition():
     done: jnp.ndarray
@@ -23,7 +27,7 @@ class Transition():
     obs: jnp.ndarray
     info: jnp.ndarray
 
-def make_train(config, env, network, batchify):
+def make_train(config, env, network):
     config["NUM_AGENTS"] = env.num_agents
     config["NUM_ACTORS"] = config["NUM_AGENTS"] * config["NUM_ENVS"]
     config["NUM_UPDATES"] = (

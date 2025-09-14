@@ -9,9 +9,9 @@ fi
 
 mkdir -p storage
 
-for seed in {0..9}; do
+for seed in {17..19}; do
   echo "Running seed $seed on GPU $DEVICE_ID..."
-  CUDA_VISIBLE_DEVICES=$DEVICE_ID python train_encoder.py \
+  CUDA_VISIBLE_DEVICES=$DEVICE_ID python train.py \
     --seed $seed \
     --wandb \
     --log storage/log_${seed}.csv
