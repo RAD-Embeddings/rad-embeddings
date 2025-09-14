@@ -1,3 +1,5 @@
+import os
+import re
 import jax
 import jraph
 import distrax
@@ -153,13 +155,50 @@ class Encoder:
         dfa_graph = dfa.to_graph()
         self.encoder_ac = ActorCritic(action_dim=n_tokens, encoder=self.encoder, deterministic=True)
         params = self.encoder_ac.init(key, {"graph_l": dfa_graph, "graph_r": dfa_graph})
-        try:
-            with open(f"storage/encoder_params_max_size_{max_size}_n_tokens_{n_tokens}_seed_{seed}.msgpack", "rb") as f:
-                self.encoder_ac_params = serialization.from_bytes(params, f.read())
-        except:
-            print(f"No pretrained encoder for seed {seed} using the encoder for default seed 42.")
-            with open(f"storage/encoder_params_max_size_{max_size}_n_tokens_{n_tokens}_seed_42.msgpack", "rb") as f:
-                self.encoder_ac_params = serialization.from_bytes(params, f.read())
+
+        storage_dir = os.path.join(os.path.dirname(__file__), "storage")
+        pattern = re.compile(
+            r"encoder_params_max_size_(\d+)_n_tokens_(\d+)_seed_(\d+)\.msgpack"
+        )
+
+        candidates = []
+        for fname in os.listdir(storage_dir):
+            m = pattern.match(fname)
+            if m:
+                f_max_size, f_n_tokens, f_seed = map(int, m.groups())
+                if f_n_tokens == n_tokens and f_max_size >= max_size:
+                    candidates.append((f_max_size, f_seed, fname))
+
+        if not candidates:
+            raise FileNotFoundError(
+                f"No pretrained encoder found with max_size >= {max_size} "
+                f"and n_tokens == {n_tokens}"
+            )
+
+        candidates.sort(key=lambda x: x[0])
+        chosen = None
+
+        for c in candidates:
+            if c[1] == seed:
+                chosen = c
+                break
+        if chosen is None:
+            for c in candidates:
+                if c[1] == 42:
+                    chosen = c
+                    print(f"No pretrained encoder for seed {seed}, using seed 42 instead.")
+                    break
+
+        if chosen is None:
+            raise FileNotFoundError(
+                f"No pretrained encoder found for seed {seed} or fallback seed 42 "
+                f"with constraints max_size >= {max_size}, n_tokens == {n_tokens}"
+            )
+
+        params_file = os.path.join(storage_dir, chosen[2])
+        with open(params_file, "rb") as f:
+            self.encoder_ac_params = serialization.from_bytes(params, f.read())
+
         self.encoder_params = {"params": self.encoder_ac_params["params"]["encoder"]}
         safe_l2_norm = lambda x: jnp.sqrt(jnp.sum(x ** 2, axis=-1, keepdims=True) + jnp.finfo(jnp.float32).eps)
         self.distance = lambda feat_l, feat_r: safe_l2_norm(
