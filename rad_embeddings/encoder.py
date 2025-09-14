@@ -3,12 +3,16 @@ import re
 import jax
 import jraph
 import distrax
+import logging
 import jax.numpy as jnp
 import flax.linen as nn
 from dfax import batch2graph
 from dfax.samplers import RADSampler
 import flax.serialization as serialization
 from flax.linen.initializers import constant, orthogonal
+
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 class GATv2Conv(nn.Module):
@@ -186,7 +190,9 @@ class Encoder:
             for c in candidates:
                 if c[1] == 42:
                     chosen = c
-                    print(f"No pretrained encoder for seed {seed}, using seed 42 instead.")
+                    logging.warning(
+                        f"No pretrained encoder for seed {seed}, using seed 42 instead."
+                    )
                     break
 
         if chosen is None:
