@@ -1,61 +1,14 @@
 import os
 import jax
 import wandb
-import jraph
-import distrax
 import argparse
-import jax.numpy as jnp
-import flax.linen as nn
 from ppo import make_train
-from encoder import Encoder
-from dfax import batch2graph
 from dfa_gym import DFABisimEnv
 from wrappers import LogWrapper
 from dfax.samplers import RADSampler
 import flax.serialization as serialization
 from flax.traverse_util import flatten_dict
-from flax.linen.initializers import constant, orthogonal
-
-
-class ActorCritic(nn.Module):
-    action_dim: int
-    encoder: nn.Module
-    deterministic: bool = False
-
-    def setup(self):
-        self.safe_l2_norm = lambda x: jnp.sqrt(jnp.sum(x ** 2, axis=-1, keepdims=True) + jnp.finfo(jnp.float32).eps)
-        self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
-
-    def __call__(self, batch):
-        
-        graph_l = batch2graph(batch["graph_l"])
-        graph_r = batch2graph(batch["graph_r"])
-
-        batch = {
-            "node_features": jnp.stack(jnp.array([graph_l["node_features"], graph_r["node_features"]])),
-            "edge_features": jnp.stack(jnp.array([graph_l["edge_features"], graph_r["edge_features"]])),
-            "edge_index": jnp.stack(jnp.array([graph_l["edge_index"], graph_r["edge_index"]])),
-            "current_state": jnp.concatenate(jnp.array([graph_l["current_state"], graph_r["current_state"]])),
-            "n_states": jnp.stack(jnp.array([graph_l["n_states"], graph_r["n_states"]]))
-        }
-
-        graph = batch2graph(batch)
-
-        feat = self.encoder(graph)
-        feat_l, feat_r = jnp.array_split(feat, 2)
-
-        feat_l_normalized = feat_l / self.safe_l2_norm(feat_l)
-        feat_r_normalized = feat_r / self.safe_l2_norm(feat_r)
-        value = self.safe_l2_norm(feat_l_normalized - feat_r_normalized)
-
-        logits = self.policy_head(feat_l - feat_r)
-
-        if self.deterministic:
-            action = jnp.argmax(logits, axis=-1)
-            return action, jnp.squeeze(value, axis=-1)
-        else:
-            pi = distrax.Categorical(logits=logits)
-            return pi, jnp.squeeze(value, axis=-1)
+from encoder import EncoderModule, ActorCritic
 
 
 def _batchify(obss: dict, agents):
@@ -91,12 +44,6 @@ if __name__ == "__main__":
         type=str,
         default="storage",
         help="Directory for saving the trained encoder (default: storage)"
-    )
-    parser.add_argument(
-        "--rad-dim",
-        type=int,
-        default=32,
-        help="Dimension of the RAD embeddings (default: 32)"
     )
     parser.add_argument(
         "--max-size",
@@ -145,7 +92,7 @@ if __name__ == "__main__":
     env = DFABisimEnv(sampler=sampler)
     env = LogWrapper(env=env, config=config)
 
-    encoder = Encoder(encoder_dim=args.rad_dim, max_size=args.max_size)
+    encoder = EncoderModule(max_size=args.max_size)
 
     network = ActorCritic(
         action_dim=env.action_space(env.agents[0]).n,
@@ -171,12 +118,8 @@ if __name__ == "__main__":
     os.makedirs(args.save_dir, exist_ok=True)
 
     trained_params = out["runner_state"][0].params
-    with open(f"{args.save_dir}/encoder_ac_rad_dim_{args.rad_dim}_max_size_{args.max_size}_n_tokens_{args.n_tokens}_params_{args.seed}", "wb") as f:
+    with open(f"{args.save_dir}/encoder_params_max_size_{args.max_size}_n_tokens_{args.n_tokens}_seed_{args.seed}.msgpack", "wb") as f:
         f.write(serialization.to_bytes(trained_params))
-
-    trained_encoder_params = {"params": trained_params["params"]["encoder"]}
-    with open(f"{args.save_dir}/encoder_rad_dim_{args.rad_dim}_max_size_{args.max_size}_n_tokens_{args.n_tokens}_params_{args.seed}", "wb") as f:
-        f.write(serialization.to_bytes(trained_encoder_params))
 
     if config["WANDB"]:
         wandb.finish()

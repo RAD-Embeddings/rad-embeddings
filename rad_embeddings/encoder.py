@@ -1,9 +1,12 @@
 import jax
 import jraph
+import distrax
 import jax.numpy as jnp
 import flax.linen as nn
+from dfax import batch2graph
 from dfax.samplers import RADSampler
 import flax.serialization as serialization
+from flax.linen.initializers import constant, orthogonal
 
 
 class GATv2Conv(nn.Module):
@@ -53,22 +56,10 @@ class GATv2Conv(nn.Module):
         return h
 
 
-class Encoder(nn.Module):
-    encoder_dim: int
+class EncoderModule(nn.Module):
+    encoder_dim: int = 32
     max_size: int = 10
     n_heads: int = 4
-
-    @staticmethod
-    def load_params(encoder_file, encoder_dim, max_size=10, n_heads=4):
-        encoder = Encoder(encoder_dim=encoder_dim, max_size=max_size, n_heads=n_heads)
-        sampler = RADSampler(p=None)
-        rng = jax.random.PRNGKey(30)
-        dfa = sampler.sample(rng)
-        dfa_graph = dfa.to_graph()
-        network_params = encoder.init(rng, dfa_graph)
-        with open(encoder_file, "rb") as f:
-            encoder_params = serialization.from_bytes(network_params, f.read())
-        return encoder, encoder_params
 
     def setup(self):
         hidden_dim = self.encoder_dim * 2
@@ -102,4 +93,86 @@ class Encoder(nn.Module):
             h = jnp.where((i < n_states)[:, None], _h, h)
 
         return self.g_embed(h[graph["current_state"]])
+
+
+def distance(feat_l, feat_r):
+    safe_l2_norm = lambda x: jnp.sqrt(jnp.sum(x ** 2, axis=-1, keepdims=True) + jnp.finfo(jnp.float32).eps)
+    feat_l_normalized = feat_l / safe_l2_norm(feat_l)
+    feat_r_normalized = feat_r / safe_l2_norm(feat_r)
+    return safe_l2_norm(feat_l_normalized - feat_r_normalized)
+
+
+class ActorCritic(nn.Module):
+    action_dim: int
+    encoder: nn.Module
+    deterministic: bool = False
+
+    def setup(self):
+        self.policy_head = nn.Dense(self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0))
+
+    def __call__(self, batch):
+        
+        graph_l = batch2graph(batch["graph_l"])
+        graph_r = batch2graph(batch["graph_r"])
+
+        batch = {
+            "node_features": jnp.stack(jnp.array([graph_l["node_features"], graph_r["node_features"]])),
+            "edge_features": jnp.stack(jnp.array([graph_l["edge_features"], graph_r["edge_features"]])),
+            "edge_index": jnp.stack(jnp.array([graph_l["edge_index"], graph_r["edge_index"]])),
+            "current_state": jnp.concatenate(jnp.array([graph_l["current_state"], graph_r["current_state"]])),
+            "n_states": jnp.stack(jnp.array([graph_l["n_states"], graph_r["n_states"]]))
+        }
+
+        graph = batch2graph(batch)
+
+        feat = self.encoder(graph)
+        feat_l, feat_r = jnp.array_split(feat, 2)
+
+        value = distance(feat_l, feat_r)
+        logits = self.policy_head(feat_l - feat_r)
+
+        if self.deterministic:
+            action = jnp.argmax(logits, axis=-1)
+            return action, jnp.squeeze(value, axis=-1)
+        else:
+            pi = distrax.Categorical(logits=logits)
+            return pi, jnp.squeeze(value, axis=-1)
+
+
+class Encoder:
+    def __init__(
+        self,
+        max_size: int = 10,
+        n_tokens: int = 10,
+        seed: int = 42,
+    ):
+        key = jax.random.PRNGKey(seed)
+        self.encoder = EncoderModule(max_size=max_size)
+        sampler = RADSampler()
+        dfa = sampler.sample(key)
+        dfa_graph = dfa.to_graph()
+        self.encoder_ac = ActorCritic(action_dim=n_tokens, encoder=self.encoder, deterministic=True)
+        params = self.encoder_ac.init(key, {"graph_l": dfa_graph, "graph_r": dfa_graph})
+        try:
+            with open(f"storage/encoder_params_max_size_{max_size}_n_tokens_{n_tokens}_seed_{seed}.msgpack", "rb") as f:
+                self.encoder_ac_params = serialization.from_bytes(params, f.read())
+        except:
+            print(f"No pretrained encoder for seed {seed} using the encoder for default seed 42.")
+            with open(f"storage/encoder_params_max_size_{max_size}_n_tokens_{n_tokens}_seed_42.msgpack", "rb") as f:
+                self.encoder_ac_params = serialization.from_bytes(params, f.read())
+        self.encoder_params = {"params": self.encoder_ac_params["params"]["encoder"]}
+        safe_l2_norm = lambda x: jnp.sqrt(jnp.sum(x ** 2, axis=-1, keepdims=True) + jnp.finfo(jnp.float32).eps)
+        self.distance = lambda feat_l, feat_r: safe_l2_norm(
+            (feat_l / safe_l2_norm(feat_l)) - (feat_r / safe_l2_norm(feat_r))
+        )
+
+    def __call__(self, graph):
+        return jax.lax.stop_gradient(self.encoder.apply(self.encoder_params, graph))
+
+    def solve(self, problem):
+        action, _ = jax.lax.stop_gradient(self.encoder_ac.apply(self.encoder_ac_params, problem))
+        return action
+
+    def distance(self, feat_l, feat_r):
+        return distance(feat_l, feat_r)
 
