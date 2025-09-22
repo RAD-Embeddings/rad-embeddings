@@ -1,1 +1,1 @@
-from rad_embeddings.encoder import Encoder
+from rad_embeddings.encoder import Encoder, EncoderModule
