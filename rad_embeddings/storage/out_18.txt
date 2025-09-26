@@ -1,0 +1,39 @@
+wandb: Currently logged in as: beyazit-y (beyazit-y-berkeley-eecs) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.21.4
+wandb: Run data is saved locally in /home/jovyan/workspace/beyazit/rad-marl2/rad-embeddings/rad_embeddings/wandb/run-20250926_003930-3yo4xxvr
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run good-meadow-33
+wandb: ⭐️ View project at https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax
+wandb: 🚀 View run at https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax/runs/3yo4xxvr
+wandb: updating run metadata
+wandb: 
+wandb: Run history:
+wandb:       actor_loss ▁▂▄▆▆▇▇▇▆▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▆▆▇▇█
+wandb: disc_return_mean ▁▁▅▆▇▇██████████████████████████████████
+wandb:          entropy ██▆▄▄▃▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▁▁▁▂▁▂▁▁▁▁▁▂▁▁▁▁▁▁
+wandb:       ep_len_max ▁▃▄█████████████████████████████████████
+wandb:      ep_len_mean ▁▁▂▂▂█▇▇██▇▇▇▇▇▇█▇██▇▇▇▇▇▆▇▇▆▇▇▆▆▆▆▇██▆▆
+wandb:       ep_len_min ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:       ep_len_std ▁▁▁▅▅▆▇▇▇▇▇▇▇▇▇▇████▇▇▇██▇▇▇█▇▇███████▇█
+wandb:              fps ▄▃▅▄▃▂▂▄▃▁▃▅▇▅▃▃▆▅▆▁▁▂▄█▅█▅▅▅▅▂▃▃▃▃▄▄▇▃▂
+wandb:  max_return_rate ▁▃▄▆▇▇▇▇▆▆▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▆▆▆▆▆▆▇▇██▆
+wandb:  min_return_rate ▅▄▄▂▁█▆▄▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▂▁▂▁▁▁▁▁▁▁▁
+wandb:               +6 ...
+wandb: 
+wandb: Run summary:
+wandb:       actor_loss 0.00673
+wandb: disc_return_mean 0.92237
+wandb:          entropy 0.91764
+wandb:       ep_len_max 100
+wandb:      ep_len_mean 6.23242
+wandb:       ep_len_min 1
+wandb:       ep_len_std 19.75306
+wandb:              fps 527.05258
+wandb:  max_return_rate 0.04456
+wandb:  min_return_rate 0.00134
+wandb:               +6 ...
+wandb: 
+wandb: 🚀 View run good-meadow-33 at: https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax/runs/3yo4xxvr
+wandb: ⭐️ View project at: https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20250926_003930-3yo4xxvr/logs
