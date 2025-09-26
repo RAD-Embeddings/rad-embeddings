@@ -1,0 +1,49 @@
+wandb: Currently logged in as: beyazit-y (beyazit-y-berkeley-eecs) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.21.1
+wandb: Run data is saved locally in /home/jovyan/workspace/beyazit/rad-marl/rad-embeddings/rad_embeddings/wandb/run-20250926_011054-lff1jq3c
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run happy-mountain-35
+wandb: ⭐️ View project at https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax
+wandb: 🚀 View run at https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax/runs/lff1jq3c
+wandb:                                                                                
+wandb: 
+wandb: Run history:
+wandb:       actor_loss ▅▅▁▁▅█▇█▇█▇▇▇▇▇▇█▇██▇█▇▇▇▇▇█▇▇▇█▇▇▇▇▇▇▇▇
+wandb: disc_return_mean ▁▁▁▂▃▄▆▇▇▇▇▇████████████████████████████
+wandb:          entropy █████▆▄▄▄▃▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▁▂▂▁▂▁▂▂▂▁▁▁
+wandb:       ep_len_max ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:      ep_len_mean ▁▁▂▁▂▂▅▆▇█▇▇▇▆▆▅▆▆▅▅▅▅▅▅▄▅▅▄▅▅▆▆▆▇▇▇▇▆▆▇
+wandb:       ep_len_min ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:       ep_len_std ▁▁▁▂▂▄▆▇▇▇▇▆▆▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇███▇▇▇████
+wandb:              fps ▅▁▅▇▃▃▆▅▄▄▅▄▄▇▆▄▃▄▃▄▄█▄▅▄▃▁▄▄▆▃▄█▇▇▃▅▇▄▄
+wandb:  max_return_rate ▁▆▇▆▆▇▇▇▆▆▇▇▇▇▇▇▇▇▇█▇▇▆▇▇▇▇▇▇██▇▇▇▇▇▇█▇▆
+wandb:  min_return_rate ▂▂▂▂▂█▃▂▂▂▁▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:       return_max ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:      return_mean ▁▂▆▆▇▇██████████████████████████████████
+wandb:       return_min ▁▁▁▁▁███████████████████████████████████
+wandb:       return_std ██▇▆▅▄▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:       total_loss █▅▅▄▄▃▂▂▂▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:       value_loss █▇▇▇▆▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb: 
+wandb: Run summary:
+wandb:       actor_loss 0.00599
+wandb: disc_return_mean 0.91306
+wandb:          entropy 0.94207
+wandb:       ep_len_max 100
+wandb:      ep_len_mean 7.25867
+wandb:       ep_len_min 1
+wandb:       ep_len_std 21.99563
+wandb:              fps 540.75888
+wandb:  max_return_rate 0.04456
+wandb:  min_return_rate 0.00183
+wandb:       return_max 2
+wandb:      return_mean 0.97205
+wandb:       return_min -1
+wandb:       return_std 0.34633
+wandb:       total_loss 0.02182
+wandb:       value_loss 0.01583
+wandb: 
+wandb: 🚀 View run happy-mountain-35 at: https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax/runs/lff1jq3c
+wandb: ⭐️ View project at: https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20250926_011054-lff1jq3c/logs
