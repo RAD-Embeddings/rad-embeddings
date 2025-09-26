@@ -1,0 +1,39 @@
+wandb: Currently logged in as: beyazit-y (beyazit-y-berkeley-eecs) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.21.4
+wandb: Run data is saved locally in /home/jovyan/workspace/beyazit/rad-marl2/rad-embeddings/rad_embeddings/wandb/run-20250926_193648-zqpxzfg6
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run grateful-bush-48
+wandb: ⭐️ View project at https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax
+wandb: 🚀 View run at https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax/runs/zqpxzfg6
+wandb: updating run metadata
+wandb: 
+wandb: Run history:
+wandb:       actor_loss ▆▁▁▁▂▄▅▆▇▇██▇▇██▇▇█▇▇▇▇▇███▇▇▇▇▇▇▇▇▇▇█▇▇
+wandb: disc_return_mean ▁▂▃▅▆▇▇▇▇███████████████████████████████
+wandb:          entropy ████▆▅▅▄▄▃▃▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▂▂▁▁▁▂▁▂▂▂▁▁▁
+wandb:       ep_len_max ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:      ep_len_mean ▂▂▃▄▄▆▆▇███▆▄▄▄▃▃▃▃▂▂▂▂▁▁▁▁▁▁▁▂▁▂▂▁▂▂▂▃▃
+wandb:       ep_len_min ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:       ep_len_std ▁▁▁▁▂▇████▇▇▇▇▇▆▆▆▆▆▆▆▆▇▇▆▆▇▇▇▇▇▇▇▇▇▇▇▇▇
+wandb:              fps ▁███████████████████████████████████████
+wandb:  max_return_rate ▁▁▁▂▃▆▇▆▆▆▇▇▇▇▇▇▇▇▇█▇▇▇██▇▇▇▇█▇▇▇▇▇▇▇▇█▇
+wandb:  min_return_rate ▇██▆▄▂▁▁▁▁▇▁▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▁▁▁▁▁
+wandb:               +6 ...
+wandb: 
+wandb: Run summary:
+wandb:       actor_loss 0.00598
+wandb: disc_return_mean 0.97847
+wandb:          entropy 0.96084
+wandb:       ep_len_max 100
+wandb:      ep_len_mean 5.0437
+wandb:       ep_len_min 1
+wandb:       ep_len_std 17.334
+wandb:              fps 537.49939
+wandb:  max_return_rate 0.07361
+wandb:  min_return_rate 0.00134
+wandb:               +6 ...
+wandb: 
+wandb: 🚀 View run grateful-bush-48 at: https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax/runs/zqpxzfg6
+wandb: ⭐️ View project at: https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20250926_193648-zqpxzfg6/logs

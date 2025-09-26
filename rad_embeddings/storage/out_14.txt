@@ -1,0 +1,39 @@
+wandb: Currently logged in as: beyazit-y (beyazit-y-berkeley-eecs) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.21.4
+wandb: Run data is saved locally in /home/jovyan/workspace/beyazit/rad-marl2/rad-embeddings/rad_embeddings/wandb/run-20250926_211750-pu7xpi1g
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run upbeat-plasma-58
+wandb: ⭐️ View project at https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax
+wandb: 🚀 View run at https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax/runs/pu7xpi1g
+wandb: updating run metadata
+wandb: 
+wandb: Run history:
+wandb:       actor_loss ▃▁▃▄▅▇▇█▇▇█▇▇▇▇█▇▇▇█▇▆██▇▆█▇▇▇▇▇▇▇▇▆▇▇▇▇
+wandb: disc_return_mean ▁▁▃▄▅▆▇▇▇▇██████████████████████████████
+wandb:          entropy ██▆▆▅▄▄▄▄▄▄▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▁▂▁▂▁▁▁▁▁
+wandb:       ep_len_max ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:      ep_len_mean ▁▁▁▂▅█▆▅▄▄▄▄▄▄▄▄▃▂▂▂▂▂▂▂▂▂▁▁▁▁▂▂▂▂▂▂▂▂▁▁
+wandb:       ep_len_min ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:       ep_len_std ▁▁▁▁▂▃▃▃▄▆██▇▇▇▇▆▆▆▆▅▅▅▅▅▅▆▅▅▅▆▆▆▆▅▅▆▅▅▅
+wandb:              fps ▂▁▄▇▇▃▇▃▃▇▃▅▆▆▄▆▆▃▂▄▄▆▃▁▂▆▂▄▅▅██▃▅▇▆▄▃▅▄
+wandb:  max_return_rate ▁▁▁▂▄▆▆▇▇▇▇█▇▇▇▇█▇██▇█▇▇▇▇▇▇███▇▇███▇▇▇█
+wandb:  min_return_rate █▄▁▁▅▃▃▂▂▃▂▂▂▂▂▂▂▂▂▂▁▁▁▂▁▁▂▂▂▂▂▁▁▁▁▁▂▁▂▂
+wandb:               +6 ...
+wandb: 
+wandb: Run summary:
+wandb:       actor_loss 0.00639
+wandb: disc_return_mean 0.98705
+wandb:          entropy 0.88733
+wandb:       ep_len_max 100
+wandb:      ep_len_mean 4.13562
+wandb:       ep_len_min 1
+wandb:       ep_len_std 15.15284
+wandb:              fps 529.36544
+wandb:  max_return_rate 0.07434
+wandb:  min_return_rate 0.00269
+wandb:               +6 ...
+wandb: 
+wandb: 🚀 View run upbeat-plasma-58 at: https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax/runs/pu7xpi1g
+wandb: ⭐️ View project at: https://wandb.ai/beyazit-y-berkeley-eecs/rad-jax
+wandb: Synced 5 W&B file(s), 0 media file(s), 0 artifact file(s) and 0 other file(s)
+wandb: Find logs at: ./wandb/run-20250926_211750-pu7xpi1g/logs
